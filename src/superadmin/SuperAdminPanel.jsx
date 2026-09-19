@@ -9,6 +9,7 @@ import Purchase from "../Modules/purchase/Purchase";
 import Production from "../Modules/production/Production";
 import Dispatch from "../Modules/dispatch/Dispatch";
 import SaleBill from "../Modules/sale-bill/SaleBill";
+import Payment from "../Modules/payment/Payment";
 import {
   Users,
   ShieldCheck,
@@ -370,7 +371,7 @@ export default function SuperAdminPanel() {
        return <SaleBill />;
 
     case "payment":
-      return <Placeholder section="Payment Management" />;
+      return <Payment />;
 
     case "ledger":
       return <Placeholder section="Ledger Management" />;

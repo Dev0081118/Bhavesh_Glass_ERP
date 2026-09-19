@@ -6,6 +6,7 @@ import KillSwitch from "./kill-switch/KillSwitch";
 import Inventory from "../Modules/inventory/Inventory";
 import Product from "../Modules/product/Product";
 import Purchase from "../Modules/purchase/Purchase";
+import Production from "../Modules/production/Production";
 import {
   Users,
   ShieldCheck,
@@ -358,7 +359,7 @@ export default function SuperAdminPanel() {
       return <Purchase />;
 
     case "production":
-      return <Placeholder section="Production Management" />;
+       return <Production />;
 
     case "dispatch":
       return <Placeholder section="Dispatch Management" />;

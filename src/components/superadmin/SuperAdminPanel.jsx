@@ -2,6 +2,7 @@ import { useState } from "react";
 import StaffManagement from "./staff/StaffManagement";
 import Hierarchy from "./hierarchy/Hierarchy";
 import AccessControl from "./access-control/AccessControl";
+import KillSwitch from "./kill-switch/KillSwitch";
 import {
   Users,
   ShieldCheck,
@@ -331,7 +332,7 @@ export default function SuperAdminPanel() {
         return <Placeholder section="Module Management" />;
 
       case "kill-switch":
-        return <Placeholder section="Kill Switch" />;
+        return <KillSwitch />;
 
       default:
         return <Dashboard />;

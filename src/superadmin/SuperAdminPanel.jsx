@@ -10,6 +10,8 @@ import Production from "../Modules/production/Production";
 import Dispatch from "../Modules/dispatch/Dispatch";
 import SaleBill from "../Modules/sale-bill/SaleBill";
 import Payment from "../Modules/payment/Payment";
+import Ledger from "../Modules/ledger/Ledger";
+import LR from "../Modules/lr/LR";
 import {
   Users,
   ShieldCheck,
@@ -374,10 +376,10 @@ export default function SuperAdminPanel() {
       return <Payment />;
 
     case "ledger":
-      return <Placeholder section="Ledger Management" />;
+      return <Ledger />;
 
     case "lr":
-      return <Placeholder section="LR Management" />;
+      return <LR />;
 
     case "whatsapp-ai":
       return <Placeholder section="WhatsApp AI" />;

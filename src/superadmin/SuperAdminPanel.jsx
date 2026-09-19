@@ -12,6 +12,7 @@ import SaleBill from "../Modules/sale-bill/SaleBill";
 import Payment from "../Modules/payment/Payment";
 import Ledger from "../Modules/ledger/Ledger";
 import LR from "../Modules/lr/LR";
+import ComingSoon from "../components/ComingSoon";
 import {
   Users,
   ShieldCheck,
@@ -342,13 +343,13 @@ export default function SuperAdminPanel() {
       return <AccessControl />;
 
     case "modules":
-      return <Placeholder section="Module Management" />;
+      return <ComingSoon />;
 
     case "kill-switch":
       return <KillSwitch />;
 
     case "system-settings":
-      return <Placeholder section="System Settings" />;
+      return <ComingSoon />;
 
     // =========================
     // ERP MODULES
@@ -382,10 +383,10 @@ export default function SuperAdminPanel() {
       return <LR />;
 
     case "whatsapp-ai":
-      return <Placeholder section="WhatsApp AI" />;
+      return <ComingSoon />;
 
     case "reports":
-      return <Placeholder section="Reports" />;
+      return <ComingSoon />;
 
     default:
       return <Dashboard />;

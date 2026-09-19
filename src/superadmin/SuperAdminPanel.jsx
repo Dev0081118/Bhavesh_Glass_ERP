@@ -5,6 +5,7 @@ import AccessControl from "./access-control/AccessControl";
 import KillSwitch from "./kill-switch/KillSwitch";
 import Inventory from "../Modules/inventory/Inventory";
 import Product from "../Modules/product/Product";
+import Purchase from "../Modules/purchase/Purchase";
 import {
   Users,
   ShieldCheck,
@@ -354,7 +355,7 @@ export default function SuperAdminPanel() {
       return <Product />;
 
     case "purchase":
-      return <Placeholder section="Purchase Management" />;
+      return <Purchase />;
 
     case "production":
       return <Placeholder section="Production Management" />;

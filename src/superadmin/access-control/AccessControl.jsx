@@ -6,7 +6,7 @@ import {
   XCircle,
 } from "lucide-react";
 
-import * as dummyData from "../../../data/dummyData";
+import * as dummyData from "../../data/dummyData";
 import AccessControlHeader from "./AccessControlHeader";
 import StaffPermissionList from "./StaffPermissionList";
 import PermissionPanel from "./PermissionPanel";

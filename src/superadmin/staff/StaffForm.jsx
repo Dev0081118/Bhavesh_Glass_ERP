@@ -7,7 +7,7 @@ import {
 import {
   departments,
   roles,
-} from "../../../data/dummyData";
+} from "../../data/dummyData";
 
 export default function StaffForm({
   staff,

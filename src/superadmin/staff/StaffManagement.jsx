@@ -17,7 +17,7 @@ import DeleteStaffModal from "./DeleteStaffModal";
 import {
   dummyStaff,
   departments,
-} from "../../../data/dummyData";
+} from "../../data/dummyData";
 
 export default function StaffManagement() {
   const [staff, setStaff] = useState(dummyStaff);

@@ -7,7 +7,7 @@ import {
   Building2,
 } from "lucide-react";
 
-import * as dummyData from "../../../data/dummyData";
+import * as dummyData from "../../data/dummyData";
 import HierarchyHeader from "./HierarchyHeader";
 import OrganizationTree from "./OrganizationTree";
 

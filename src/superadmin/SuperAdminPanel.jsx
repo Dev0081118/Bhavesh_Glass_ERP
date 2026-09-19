@@ -3,6 +3,8 @@ import StaffManagement from "./staff/StaffManagement";
 import Hierarchy from "./hierarchy/Hierarchy";
 import AccessControl from "./access-control/AccessControl";
 import KillSwitch from "./kill-switch/KillSwitch";
+import Inventory from "../Modules/inventory/Inventory";
+import Product from "../Modules/product/Product";
 import {
   Users,
   ShieldCheck,
@@ -12,10 +14,10 @@ import {
   ArrowUpRight,
 } from "lucide-react";
 
-import Sidebar from "./Sidebar";
-import Topbar from "./Topbar";
+import Sidebar from "../components/Sidebar";
+import Topbar from "../components/Topbar";
 
-import { dashboardStats } from "../../data/dummyData";
+import { dashboardStats } from "../data/dummyData";
 
 function StatCard({ title, value, icon: Icon, description }) {
   return (
@@ -314,30 +316,74 @@ function Placeholder({ section }) {
 export default function SuperAdminPanel() {
   const [activeSection, setActiveSection] = useState("dashboard");
 
-  const renderContent = () => {
-    switch (activeSection) {
-      case "dashboard":
-        return <Dashboard />;
+ const renderContent = () => {
+  switch (activeSection) {
+    // =========================
+    // SUPER ADMIN
+    // =========================
 
-      case "staff":
-        return <StaffManagement />;
+    case "dashboard":
+      return <Dashboard />;
 
-      case "hierarchy":
-        return <Hierarchy />;
+    case "staff":
+      return <StaffManagement />;
 
-      case "access":
-        return <AccessControl />;
+    case "hierarchy":
+      return <Hierarchy />;
 
-      case "modules":
-        return <Placeholder section="Module Management" />;
+    case "access":
+      return <AccessControl />;
 
-      case "kill-switch":
-        return <KillSwitch />;
+    case "modules":
+      return <Placeholder section="Module Management" />;
 
-      default:
-        return <Dashboard />;
-    }
-  };
+    case "kill-switch":
+      return <KillSwitch />;
+
+    case "system-settings":
+      return <Placeholder section="System Settings" />;
+
+    // =========================
+    // ERP MODULES
+    // =========================
+
+    case "inventory":
+      return <Inventory />;
+
+    case "product":
+      return <Product />;
+
+    case "purchase":
+      return <Placeholder section="Purchase Management" />;
+
+    case "production":
+      return <Placeholder section="Production Management" />;
+
+    case "dispatch":
+      return <Placeholder section="Dispatch Management" />;
+
+    case "sale-bill":
+      return <Placeholder section="Sale Bill Management" />;
+
+    case "payment":
+      return <Placeholder section="Payment Management" />;
+
+    case "ledger":
+      return <Placeholder section="Ledger Management" />;
+
+    case "lr":
+      return <Placeholder section="LR Management" />;
+
+    case "whatsapp-ai":
+      return <Placeholder section="WhatsApp AI" />;
+
+    case "reports":
+      return <Placeholder section="Reports" />;
+
+    default:
+      return <Dashboard />;
+  }
+};
 
   return (
     <div className="flex h-screen overflow-hidden bg-[#f5f5f7]">

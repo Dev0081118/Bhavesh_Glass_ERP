@@ -1,6 +1,6 @@
 import React from 'react'
 import Login from './components/login'
-import SuperAdminPanel from "./components/superadmin/SuperAdminPanel";
+import SuperAdminPanel from "./superadmin/SuperAdminPanel";
 const App = () => {
   return (
     <div>

@@ -1,6 +1,7 @@
 import { useState } from "react";
 import StaffManagement from "./staff/StaffManagement";
 import Hierarchy from "./hierarchy/Hierarchy";
+import AccessControl from "./access-control/AccessControl";
 import {
   Users,
   ShieldCheck,
@@ -324,7 +325,7 @@ export default function SuperAdminPanel() {
         return <Hierarchy />;
 
       case "access":
-        return <Placeholder section="Access Management" />;
+        return <AccessControl />;
 
       case "modules":
         return <Placeholder section="Module Management" />;

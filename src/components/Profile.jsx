@@ -54,7 +54,7 @@ export default function Profile({ onLogout, user = defaultProfile, profileAccess
 
       {isOpen && (
         <div
-          className="absolute right-0 top-14 z-30 w-[min(360px,calc(100vw-2rem))] rounded-2xl border border-slate-200 bg-white p-5 shadow-xl"
+          className="absolute right-0 top-14 z-30 w-[min(360px,calc(100vw-1.5rem))] max-w-[calc(100vw-1.5rem)] rounded-2xl border border-slate-200 bg-white p-4 shadow-xl sm:p-5"
           role="dialog"
           aria-label="Profile"
         >

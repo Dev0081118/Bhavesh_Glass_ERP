@@ -123,6 +123,8 @@ export default function Sidebar({
   setActiveSection,
   permissions = {},
   isSuperAdmin = false,
+  mobileOpen = false,
+  onMobileClose = () => {},
 }) {
   const [collapsed, setCollapsed] = useState(false);
 
@@ -143,7 +145,10 @@ export default function Sidebar({
     return (
       <button
         key={item.id}
-        onClick={() => setActiveSection(item.id)}
+        onClick={() => {
+          setActiveSection(item.id);
+          onMobileClose();
+        }}
         title={collapsed ? item.label : undefined}
         className={`
           group flex w-full items-center rounded-xl px-3 py-2.5
@@ -172,13 +177,23 @@ export default function Sidebar({
   };
 
   return (
-    <aside
-      className={`
-        relative flex h-screen flex-col border-r border-slate-200
-        bg-white transition-all duration-300
-        ${collapsed ? "w-[76px]" : "w-[250px]"}
-      `}
-    >
+    <>
+      {mobileOpen && (
+        <button
+          type="button"
+          aria-label="Close navigation"
+          onClick={onMobileClose}
+          className="fixed inset-0 z-30 bg-slate-950/30 md:hidden"
+        />
+      )}
+      <aside
+        className={`
+          fixed inset-y-0 left-0 z-40 flex h-screen flex-col border-r border-slate-200
+          bg-white transition-transform duration-300 md:relative md:z-auto md:translate-x-0 md:transition-[width]
+          ${collapsed ? "md:w-[76px]" : "w-[250px] md:w-[250px]"}
+          ${mobileOpen ? "translate-x-0" : "-translate-x-full"}
+        `}
+      >
       {/* ================================
           LOGO
       ================================= */}
@@ -265,6 +280,7 @@ export default function Sidebar({
           )}
         </button>
       </div>
-    </aside>
+      </aside>
+    </>
   );
 }

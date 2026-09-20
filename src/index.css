@@ -1,1 +1,18 @@
 @import "tailwindcss";
+
+html,
+body,
+#root {
+	min-height: 100%;
+}
+
+body {
+	overflow-x: hidden;
+}
+
+@media (max-width: 639px) {
+	.fixed.inset-0 > div {
+		max-height: calc(100vh - 1rem);
+		overflow-y: auto;
+	}
+}

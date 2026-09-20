@@ -1,14 +1,23 @@
 import {
   Bell,
+  Menu,
   Search,
 } from "lucide-react";
 import Profile from "./Profile";
 
-export default function Topbar({ onLogout, user, profileAccess }) {
+export default function Topbar({ onLogout, user, profileAccess, onMenuOpen }) {
   return (
-    <header className="flex h-[76px] shrink-0 items-center justify-between border-b border-slate-200 bg-white px-6">
+    <header className="flex h-[76px] shrink-0 items-center justify-between border-b border-slate-200 bg-white px-4 sm:px-6">
       {/* Search */}
-      <div className="flex items-center">
+      <div className="flex items-center gap-2">
+        <button
+          type="button"
+          onClick={onMenuOpen}
+          aria-label="Open navigation"
+          className="flex h-10 w-10 items-center justify-center rounded-xl text-slate-500 transition hover:bg-slate-100 hover:text-slate-900 md:hidden"
+        >
+          <Menu size={20} />
+        </button>
         <div className="relative hidden w-[280px] md:block">
           <Search
             size={17}
@@ -40,7 +49,7 @@ export default function Topbar({ onLogout, user, profileAccess }) {
       </div>
 
       {/* Right */}
-      <div className="flex items-center gap-3">
+      <div className="flex min-w-0 items-center gap-2 sm:gap-3">
         {/* Notification */}
         <button
           className="

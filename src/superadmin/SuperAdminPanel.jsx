@@ -305,6 +305,7 @@ function AccessDenied() {
 
 export default function SuperAdminPanel({ onLogout, user, token }) {
   const [activeSection, setActiveSection] = useState("dashboard");
+  const [mobileSidebarOpen, setMobileSidebarOpen] = useState(false);
   const isSuperAdmin = user?.role === "Super Admin";
   const access = normalizeAccess(user);
   const canAccessModule = (module) => isSuperAdmin || Boolean(access.modules[module]);
@@ -389,6 +390,8 @@ export default function SuperAdminPanel({ onLogout, user, token }) {
         setActiveSection={setActiveSection}
         permissions={access.modules}
         isSuperAdmin={isSuperAdmin}
+        mobileOpen={mobileSidebarOpen}
+        onMobileClose={() => setMobileSidebarOpen(false)}
       />
 
       <div className="flex min-w-0 flex-1 flex-col">
@@ -396,9 +399,10 @@ export default function SuperAdminPanel({ onLogout, user, token }) {
           onLogout={onLogout}
           user={user}
           profileAccess={access.profile}
+          onMenuOpen={() => setMobileSidebarOpen(true)}
         />
 
-        <main className="flex-1 overflow-y-auto p-5 sm:p-6 lg:p-8">
+        <main className="min-w-0 flex-1 overflow-y-auto p-3 sm:p-6 lg:p-8">
           <div className="mx-auto max-w-[1600px]">
             {renderContent()}
           </div>

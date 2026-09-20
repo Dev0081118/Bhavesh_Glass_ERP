@@ -35,6 +35,26 @@ export const updateAccessUser = (token, userId, access) =>
     body: JSON.stringify(access),
   });
 
+export const listStaff = (token) => request("/staff", { token });
+export const getOverview = (token) => request("/overview", { token });
+
+export const createStaff = (token, data) =>
+  request("/staff", {
+    method: "POST",
+    token,
+    body: JSON.stringify(data),
+  });
+
+export const updateStaff = (token, userId, data) =>
+  request(`/staff/${userId}`, {
+    method: "PATCH",
+    token,
+    body: JSON.stringify(data),
+  });
+
+export const deleteStaff = (token, userId) =>
+  request(`/staff/${userId}`, { method: "DELETE", token });
+
 export const listResource = (token, resource) =>
   request(`/${resource}`, { token });
 

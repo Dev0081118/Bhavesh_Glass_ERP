@@ -6,29 +6,15 @@ import {
   XCircle,
 } from "lucide-react";
 
-import * as dummyData from "../../data/dummyData";
 import AccessControlHeader from "./AccessControlHeader";
 import StaffPermissionList from "./StaffPermissionList";
 import PermissionPanel from "./PermissionPanel";
 import PermissionSummary from "./PermissionSummary";
 import { getAccessUsers, updateAccessUser } from "../../lib/api";
 
-const staffSource =
-  dummyData.dummyStaff ||
-  dummyData.staff ||
-  dummyData.DUMMY_STAFF ||
-  dummyData.initialStaff ||
-  [];
-
-const departmentSource =
-  dummyData.departments ||
-  dummyData.DEPARTMENTS ||
-  ["Account", "Sales", "Purchase", "Production", "Dispatch"];
-
-const moduleSource =
-  dummyData.modules ||
-  dummyData.MODULES ||
-  [
+const staffSource = [];
+const departmentSource = ["Account", "Sales", "Purchase", "Production", "Dispatch"];
+const moduleSource = [
     "Dashboard",
     "Payment",
     "LR",
@@ -41,7 +27,7 @@ const moduleSource =
     "Production",
     "Dispatch",
     "Reports",
-  ];
+];
 
 const normalizeModuleKey = (moduleName) =>
   String(moduleName)

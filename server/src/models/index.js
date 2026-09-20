@@ -10,4 +10,5 @@ module.exports = {
   Dispatch: require("./Dispatch"),
   LR: require("./LR"),
   LedgerEntry: require("./LedgerEntry"),
+  Activity: require("./Activity"),
 };

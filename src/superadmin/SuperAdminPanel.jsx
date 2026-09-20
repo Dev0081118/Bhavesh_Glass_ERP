@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import StaffManagement from "./staff/StaffManagement";
 import Hierarchy from "./hierarchy/Hierarchy";
 import AccessControl from "./access-control/AccessControl";
@@ -27,6 +27,7 @@ import Topbar from "../components/Topbar";
 
 import { dashboardStats } from "../data/dummyData";
 import { normalizeAccess } from "../data/accessControl";
+import { getOverview } from "../lib/api";
 
 function StatCard({ title, value, icon: Icon, description }) {
   return (
@@ -60,33 +61,19 @@ function StatCard({ title, value, icon: Icon, description }) {
   );
 }
 
-function Dashboard({ user }) {
-  const activities = [
-    {
-      id: 1,
-      title: "New employee added",
-      user: "Jay Patel",
-      time: "12 minutes ago",
-    },
-    {
-      id: 2,
-      title: "Access permissions updated",
-      user: "Arjun Mehta",
-      time: "34 minutes ago",
-    },
-    {
-      id: 3,
-      title: "Manager profile updated",
-      user: "Karan Patel",
-      time: "1 hour ago",
-    },
-    {
-      id: 4,
-      title: "Inventory module assigned",
-      user: "Ravi Joshi",
-      time: "2 hours ago",
-    },
-  ];
+function Dashboard({ user, token }) {
+  const [liveStats, setLiveStats] = useState(dashboardStats);
+  const [liveSystem, setLiveSystem] = useState({ modules: 12, activeUsers: 0, departments: 5, pending: 0 });
+  const [activities, setActivities] = useState([]);
+
+  useEffect(() => {
+    if (!token) return;
+    getOverview(token).then((result) => {
+      setLiveStats(result.stats);
+      setLiveSystem(result.system);
+      setActivities(result.activities || []);
+    });
+  }, [token]);
 
   return (
     <div className="space-y-6">
@@ -109,28 +96,28 @@ function Dashboard({ user }) {
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
         <StatCard
           title="Total Staff"
-          value={dashboardStats.totalStaff}
+          value={liveStats.totalStaff}
           icon={Users}
           description="All registered staff members"
         />
 
         <StatCard
           title="Administrators"
-          value={dashboardStats.totalAdmins}
+          value={liveStats.totalAdmins}
           icon={ShieldCheck}
           description="Users with admin access"
         />
 
         <StatCard
           title="Managers"
-          value={dashboardStats.totalManagers}
+          value={liveStats.totalManagers}
           icon={UserCog}
           description="Active management staff"
         />
 
         <StatCard
           title="Employees"
-          value={dashboardStats.totalEmployees}
+          value={liveStats.totalEmployees}
           icon={UserRound}
           description="Active employees"
         />
@@ -161,10 +148,10 @@ function Dashboard({ user }) {
 
           <div className="mt-6 grid grid-cols-2 gap-3 sm:grid-cols-4">
             {[
-              ["Modules", "12"],
-              ["Active Users", "39"],
-              ["Departments", "5"],
-              ["Pending", "3"],
+              ["Modules", liveSystem.modules],
+              ["Active Users", liveSystem.activeUsers],
+              ["Departments", liveSystem.departments],
+              ["Pending", liveSystem.pending],
             ].map(([label, value]) => (
               <div
                 key={label}
@@ -229,7 +216,7 @@ function Dashboard({ user }) {
 
                 <div className="min-w-0">
                   <p className="text-xs font-medium text-slate-800">
-                    {activity.title}
+                    {activity.description}
                   </p>
 
                   <p className="mt-0.5 text-[11px] text-slate-400">
@@ -237,7 +224,7 @@ function Dashboard({ user }) {
                   </p>
 
                   <p className="mt-1 text-[10px] text-slate-300">
-                    {activity.time}
+                    {activity.time ? new Date(activity.time).toLocaleString() : "Just now"}
                   </p>
                 </div>
               </div>
@@ -328,13 +315,13 @@ export default function SuperAdminPanel({ onLogout, user, token }) {
     // =========================
 
     case "dashboard":
-      return <Dashboard user={user} />;
+      return <Dashboard user={user} token={token} />;
 
     case "staff":
-      return isSuperAdmin ? <StaffManagement /> : <AccessDenied />;
+      return isSuperAdmin ? <StaffManagement token={token} /> : <AccessDenied />;
 
     case "hierarchy":
-      return isSuperAdmin ? <Hierarchy /> : <AccessDenied />;
+      return isSuperAdmin ? <Hierarchy token={token} /> : <AccessDenied />;
 
     case "access":
       return isSuperAdmin ? <AccessControl token={token} /> : <AccessDenied />;

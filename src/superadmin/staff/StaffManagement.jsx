@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import {
   Plus,
   Search,
@@ -14,13 +14,25 @@ import StaffForm from "./StaffForm";
 import StaffProfile from "./StaffProfile";
 import DeleteStaffModal from "./DeleteStaffModal";
 
+const dummyStaff = [];
+const departments = ["Account", "Sales", "Purchase", "Production", "Dispatch"];
 import {
-  dummyStaff,
-  departments,
-} from "../../data/dummyData";
+  createStaff,
+  deleteStaff as removeStaff,
+  listStaff,
+  updateStaff,
+} from "../../lib/api";
 
-export default function StaffManagement() {
-  const [staff, setStaff] = useState(dummyStaff);
+export default function StaffManagement({ token }) {
+  const [staff, setStaff] = useState(token ? [] : dummyStaff);
+  const [error, setError] = useState("");
+
+  useEffect(() => {
+    if (!token) return;
+    listStaff(token)
+      .then((result) => setStaff(result.staff))
+      .catch((loadError) => setError(loadError.message));
+  }, [token]);
 
   const [search, setSearch] = useState("");
   const [roleFilter, setRoleFilter] = useState("All");
@@ -76,7 +88,7 @@ export default function StaffManagement() {
     filteredStaff.map((person) => {
       const manager = staff.find(
         (item) =>
-          item.id === Number(person.managerId)
+          String(item.id) === String(person.managerId)
       );
 
       return {
@@ -90,80 +102,46 @@ export default function StaffManagement() {
   // CREATE
   // =========================
 
-  const handleCreate = (formData) => {
-    const newStaff = {
-      ...formData,
-
-      id: Date.now(),
-
-      managerId: formData.managerId
-        ? Number(formData.managerId)
-        : null,
-
-      department:
-        formData.role === "Admin"
-          ? null
-          : formData.department,
-
-      status: "Active",
-    };
-
-    setStaff((prev) => [
-      ...prev,
-      newStaff,
-    ]);
-
-    setShowForm(false);
+  const handleCreate = async (formData) => {
+    try {
+      const result = await createStaff(token, formData);
+      setStaff((prev) => [...prev, result.staff]);
+      setShowForm(false);
+    } catch (createError) {
+      setError(createError.message);
+    }
   };
 
   // =========================
   // UPDATE
   // =========================
 
-  const handleUpdate = (formData) => {
-    const updatedStaff = {
-      ...formData,
-
-      managerId: formData.managerId
-        ? Number(formData.managerId)
-        : null,
-
-      department:
-        formData.role === "Admin"
-          ? null
-          : formData.department,
-    };
-
-    setStaff((prev) =>
-      prev.map((person) =>
-        person.id === editingStaff.id
-          ? {
-              ...person,
-              ...updatedStaff,
-            }
-          : person
-      )
-    );
-
-    setEditingStaff(null);
-    setShowForm(false);
+  const handleUpdate = async (formData) => {
+    try {
+      const result = await updateStaff(token, editingStaff.id, formData);
+      setStaff((prev) => prev.map((person) =>
+        person.id === editingStaff.id ? result.staff : person
+      ));
+      setEditingStaff(null);
+      setShowForm(false);
+    } catch (updateError) {
+      setError(updateError.message);
+    }
   };
 
   // =========================
   // DELETE
   // =========================
 
-  const handleDelete = () => {
+  const handleDelete = async () => {
     if (!deleteStaff) return;
-
-    setStaff((prev) =>
-      prev.filter(
-        (person) =>
-          person.id !== deleteStaff.id
-      )
-    );
-
-    setDeleteStaff(null);
+    try {
+      await removeStaff(token, deleteStaff.id);
+      setStaff((prev) => prev.filter((person) => person.id !== deleteStaff.id));
+      setDeleteStaff(null);
+    } catch (deleteError) {
+      setError(deleteError.message);
+    }
   };
 
   // =========================
@@ -195,6 +173,12 @@ export default function StaffManagement() {
 
   return (
     <div className="space-y-6">
+
+      {error && (
+        <div className="rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700" role="alert">
+          {error}
+        </div>
+      )}
 
       {/* HEADER */}
 

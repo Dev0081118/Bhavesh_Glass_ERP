@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import {
   Users,
   ShieldCheck,
@@ -7,24 +7,20 @@ import {
   Building2,
 } from "lucide-react";
 
-import * as dummyData from "../../data/dummyData";
 import HierarchyHeader from "./HierarchyHeader";
 import OrganizationTree from "./OrganizationTree";
+import { listStaff } from "../../lib/api";
 
-const staffSource =
-  dummyData.dummyStaff ||
-  dummyData.staff ||
-  dummyData.DUMMY_STAFF ||
-  dummyData.initialStaff ||
-  [];
+const staffSource = [];
+const departmentSource = ["Account", "Sales", "Purchase", "Production", "Dispatch"];
 
-const departmentSource =
-  dummyData.departments ||
-  dummyData.DEPARTMENTS ||
-  ["Account", "Sales", "Purchase", "Production", "Dispatch"];
+export default function Hierarchy({ token }) {
+  const [staff, setStaff] = useState(token ? [] : staffSource);
 
-export default function Hierarchy() {
-  const [staff] = useState(staffSource);
+  useEffect(() => {
+    if (!token) return;
+    listStaff(token).then((result) => setStaff(result.staff));
+  }, [token]);
 
   const [search, setSearch] = useState("");
   const [roleFilter, setRoleFilter] = useState("All");

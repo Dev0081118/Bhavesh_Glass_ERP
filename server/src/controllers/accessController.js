@@ -1,4 +1,5 @@
 const User = require("../models/User");
+const { recordActivity } = require("../utils/activity");
 
 const publicAccess = (user) => ({
   userId: user._id,
@@ -49,6 +50,13 @@ const updateUserAccess = async (req, res) => {
   }
 
   await user.save();
+  await recordActivity({
+    action: "ACCESS_UPDATED",
+    description: `Updated module and profile access for ${user.name}.`,
+    actor: req.user._id,
+    target: user._id,
+    metadata: { modules, profile },
+  });
   return res.json({ message: "Access updated successfully.", ...publicAccess(user) });
 };
 

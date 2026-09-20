@@ -4,6 +4,7 @@ import PurchaseSummary from "./PurchaseSummary";
 import PurchaseFilters from "./PurchaseFilters";
 import PurchaseTable from "./PurchaseTable";
 import PurchaseForm from "./PurchaseForm";
+import useBackendResource from "../../hooks/useBackendResource";
 import PurchaseDetails from "./PurchaseDetails";
 import DeletePurchaseModal from "./DeletePurchaseModal";
 
@@ -235,8 +236,9 @@ const initialPurchases = [
   },
 ];
 
-export default function Purchase() {
-  const [purchases, setPurchases] = useState(initialPurchases);
+export default function Purchase({ token }) {
+  const resource = useBackendResource(token, "purchases", initialPurchases);
+  const { records: purchases, save, remove } = resource;
 
   const [search, setSearch] = useState("");
   const [supplierFilter, setSupplierFilter] = useState("All");
@@ -351,36 +353,16 @@ export default function Purchase() {
     setDeleteOpen(true);
   };
 
-  const handleSave = (purchaseData) => {
-    if (editingPurchase) {
-      setPurchases((current) =>
-        current.map((purchase) =>
-          purchase.id === editingPurchase.id
-            ? { ...purchaseData, id: editingPurchase.id }
-            : purchase
-        )
-      );
-    } else {
-      const newPurchase = {
-        ...purchaseData,
-        id: `PUR-${String(purchases.length + 1).padStart(3, "0")}`,
-      };
-
-      setPurchases((current) => [newPurchase, ...current]);
-    }
+  const handleSave = async (purchaseData) => {
+    await save(purchaseData, editingPurchase?.id);
 
     setFormOpen(false);
     setEditingPurchase(null);
   };
 
-  const handleDelete = () => {
+  const handleDelete = async () => {
     if (!purchaseToDelete) return;
-
-    setPurchases((current) =>
-      current.filter(
-        (purchase) => purchase.id !== purchaseToDelete.id
-      )
-    );
+    await remove(purchaseToDelete.id);
 
     setDeleteOpen(false);
     setPurchaseToDelete(null);

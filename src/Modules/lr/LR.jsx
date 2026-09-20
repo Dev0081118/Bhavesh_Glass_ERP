@@ -6,6 +6,7 @@ import LRTable from "./LRTable";
 import LRForm from "./LRForm";
 import LRDetails from "./LRDetails";
 import DeleteLRModal from "./DeleteLRModal";
+import useBackendResource from "../../hooks/useBackendResource";
 
 const initialLRs = [
   {
@@ -198,8 +199,9 @@ const emptyFilters = {
   dateTo: "",
 };
 
-function LR() {
-  const [lrs, setLrs] = useState(initialLRs);
+function LR({ token }) {
+  const resource = useBackendResource(token, "lrs", initialLRs);
+  const { records: lrs, save, remove } = resource;
 
   const [filters, setFilters] = useState(emptyFilters);
 
@@ -294,40 +296,16 @@ function LR() {
     setIsFormOpen(true);
   };
 
-  const handleSave = (formData) => {
-    if (editingLR) {
-      setLrs((current) =>
-        current.map((lr) =>
-          lr.id === editingLR.id
-            ? {
-                ...lr,
-                ...formData,
-              }
-            : lr
-        )
-      );
-    } else {
-      const nextNumber = lrs.length + 1;
-
-      const newLR = {
-        ...formData,
-        id: `LR-${String(nextNumber).padStart(3, "0")}`,
-        lrNumber: `LR-2026-${String(nextNumber).padStart(3, "0")}`,
-      };
-
-      setLrs((current) => [newLR, ...current]);
-    }
+  const handleSave = async (formData) => {
+    await save(formData, editingLR?.id);
 
     setIsFormOpen(false);
     setEditingLR(null);
   };
 
-  const handleDelete = () => {
+  const handleDelete = async () => {
     if (!deleteLR) return;
-
-    setLrs((current) =>
-      current.filter((lr) => lr.id !== deleteLR.id)
-    );
+    await remove(deleteLR.id);
 
     if (selectedLR?.id === deleteLR.id) {
       setSelectedLR(null);

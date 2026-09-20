@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import InventoryHeader from "./InventoryHeader";
 import InventorySummary from "./InventorySummary";
 import InventoryFilters from "./InventoryFilters";
@@ -6,6 +6,7 @@ import InventoryTable from "./InventoryTable";
 import StockMovementModal from "./StockMovementModal";
 import StockAdjustmentModal from "./StockAdjustmentModal";
 import InventoryDetails from "./InventoryDetails";
+import { listResource, updateResource } from "../../lib/api";
 
 const INITIAL_INVENTORY = [
   {
@@ -114,8 +115,33 @@ const INITIAL_INVENTORY = [
   },
 ];
 
-const Inventory = () => {
-  const [inventory, setInventory] = useState(INITIAL_INVENTORY);
+const normalizeInventory = (item) => ({
+  ...item,
+  id: item._id || item.id,
+  productId: item.product?._id || item.productId,
+  name: item.product?.name || item.name || "Unknown product",
+  sku: item.product?.sku || item.sku || "",
+  category: item.product?.category || item.category || "",
+  size: item.product?.size || item.size || "",
+  unit: item.product?.unit || item.unit || "Piece",
+  available: item.availableQuantity ?? item.available ?? 0,
+  reserved: item.reservedQuantity ?? item.reserved ?? 0,
+  reorderLevel: item.reorderLevel ?? 0,
+});
+
+const Inventory = ({ token }) => {
+  const [inventory, setInventory] = useState(
+    token ? [] : INITIAL_INVENTORY
+  );
+  const [error, setError] = useState("");
+
+  useEffect(() => {
+    if (!token) return;
+
+    listResource(token, "inventory")
+      .then((result) => setInventory(result.data.map(normalizeInventory)))
+      .catch((loadError) => setError(loadError.message));
+  }, [token]);
 
   const [search, setSearch] = useState("");
   const [category, setCategory] = useState("All");
@@ -215,54 +241,62 @@ const Inventory = () => {
     ...new Set(inventory.map((item) => item.location)),
   ];
 
-  const handleStockMovement = ({
+  const handleStockMovement = async ({
     inventoryId,
     type,
     quantity,
     reason,
   }) => {
-    setInventory((current) =>
-      current.map((item) => {
-        if (item.id !== inventoryId) return item;
+    if (!token) return;
 
-        let newAvailable = item.available;
+    const item = inventory.find((entry) => entry.id === inventoryId);
+    if (!item) return;
 
-        if (type === "in") {
-          newAvailable += quantity;
-        }
+    const newAvailable = type === "in"
+      ? item.available + Number(quantity)
+      : Math.max(0, item.available - Number(quantity));
 
-        if (type === "out") {
-          newAvailable = Math.max(
-            0,
-            newAvailable - quantity
-          );
-        }
-
-        return {
-          ...item,
-          available: newAvailable,
-        };
-      })
-    );
+    try {
+      const result = await updateResource(token, "inventory", inventoryId, {
+        quantity: newAvailable + item.reserved,
+        availableQuantity: newAvailable,
+        reservedQuantity: item.reserved,
+        lastMovementAt: new Date().toISOString(),
+      });
+      setInventory((current) => current.map((entry) =>
+        entry.id === inventoryId ? normalizeInventory(result.data) : entry
+      ));
+    } catch (movementError) {
+      setError(movementError.message);
+    }
 
     setShowMovementModal(false);
   };
 
-  const handleAdjustment = ({
+  const handleAdjustment = async ({
     inventoryId,
     quantity,
     reason,
   }) => {
-    setInventory((current) =>
-      current.map((item) =>
-        item.id === inventoryId
-          ? {
-              ...item,
-              available: Math.max(0, quantity),
-            }
-          : item
-      )
-    );
+    if (!token) return;
+
+    const item = inventory.find((entry) => entry.id === inventoryId);
+    if (!item) return;
+
+    try {
+      const availableQuantity = Math.max(0, Number(quantity));
+      const result = await updateResource(token, "inventory", inventoryId, {
+        quantity: availableQuantity + item.reserved,
+        availableQuantity,
+        reservedQuantity: item.reserved,
+        lastMovementAt: new Date().toISOString(),
+      });
+      setInventory((current) => current.map((entry) =>
+        entry.id === inventoryId ? normalizeInventory(result.data) : entry
+      ));
+    } catch (adjustmentError) {
+      setError(adjustmentError.message);
+    }
 
     setShowAdjustmentModal(false);
   };
@@ -274,6 +308,11 @@ const Inventory = () => {
 
   return (
     <div className="min-h-full bg-slate-50 p-4 sm:p-6 lg:p-8">
+      {error && (
+        <div className="mb-4 rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700" role="alert">
+          {error}
+        </div>
+      )}
       <div className="mx-auto max-w-[1600px] space-y-6">
         <InventoryHeader
           onStockMovement={() =>

@@ -26,6 +26,7 @@ import Sidebar from "../components/Sidebar";
 import Topbar from "../components/Topbar";
 
 import { dashboardStats } from "../data/dummyData";
+import { normalizeAccess } from "../data/accessControl";
 
 function StatCard({ title, value, icon: Icon, description }) {
   return (
@@ -59,7 +60,7 @@ function StatCard({ title, value, icon: Icon, description }) {
   );
 }
 
-function Dashboard() {
+function Dashboard({ user }) {
   const activities = [
     {
       id: 1,
@@ -96,7 +97,7 @@ function Dashboard() {
         </p>
 
         <h1 className="mt-1 text-3xl font-semibold tracking-tight text-slate-900">
-          Good evening, Super Admin.
+          Good evening, {user?.name || "User"}.
         </h1>
 
         <p className="mt-2 text-sm text-slate-500">
@@ -301,28 +302,24 @@ function Dashboard() {
   );
 }
 
-function Placeholder({ section }) {
+function AccessDenied() {
   return (
     <div className="flex min-h-[500px] items-center justify-center">
       <div className="text-center">
-        <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-2xl bg-slate-100">
-          <Boxes size={24} className="text-slate-500" />
-        </div>
-
-        <h2 className="mt-4 text-lg font-semibold text-slate-900">
-          {section}
-        </h2>
-
+        <h2 className="text-lg font-semibold text-slate-900">Access restricted</h2>
         <p className="mt-1 text-sm text-slate-400">
-          This module will be built next.
+          Ask a Super Admin to enable this module for your profile.
         </p>
       </div>
     </div>
   );
 }
 
-export default function SuperAdminPanel({ onLogout }) {
+export default function SuperAdminPanel({ onLogout, user, token }) {
   const [activeSection, setActiveSection] = useState("dashboard");
+  const isSuperAdmin = user?.role === "Super Admin";
+  const access = normalizeAccess(user);
+  const canAccessModule = (module) => isSuperAdmin || Boolean(access.modules[module]);
 
  const renderContent = () => {
   switch (activeSection) {
@@ -331,62 +328,62 @@ export default function SuperAdminPanel({ onLogout }) {
     // =========================
 
     case "dashboard":
-      return <Dashboard />;
+      return <Dashboard user={user} />;
 
     case "staff":
-      return <StaffManagement />;
+      return isSuperAdmin ? <StaffManagement /> : <AccessDenied />;
 
     case "hierarchy":
-      return <Hierarchy />;
+      return isSuperAdmin ? <Hierarchy /> : <AccessDenied />;
 
     case "access":
-      return <AccessControl />;
+      return isSuperAdmin ? <AccessControl token={token} /> : <AccessDenied />;
 
     case "modules":
-      return <ComingSoon />;
+      return isSuperAdmin ? <ComingSoon /> : <AccessDenied />;
 
     case "kill-switch":
-      return <KillSwitch />;
+      return isSuperAdmin ? <KillSwitch /> : <AccessDenied />;
 
     case "system-settings":
-      return <ComingSoon />;
+      return isSuperAdmin ? <ComingSoon /> : <AccessDenied />;
 
     // =========================
     // ERP MODULES
     // =========================
 
     case "inventory":
-      return <Inventory />;
+      return canAccessModule("inventory") ? <Inventory token={token} /> : <AccessDenied />;
 
     case "product":
-      return <Product />;
+      return canAccessModule("product") ? <Product token={token} /> : <AccessDenied />;
 
     case "purchase":
-      return <Purchase />;
+      return canAccessModule("purchase") ? <Purchase token={token} /> : <AccessDenied />;
 
     case "production":
-       return <Production />;
+      return canAccessModule("production") ? <Production token={token} /> : <AccessDenied />;
 
     case "dispatch":
-       return <Dispatch />;
+      return canAccessModule("dispatch") ? <Dispatch token={token} /> : <AccessDenied />;
 
     case "sale-bill":
-       return <SaleBill />;
+      return canAccessModule("sale_bill") ? <SaleBill token={token} /> : <AccessDenied />;
 
     case "payment":
-      return <Payment />;
+      return canAccessModule("payment") ? <Payment token={token} /> : <AccessDenied />;
 
     case "ledger":
-      return <Ledger />;
+      return canAccessModule("ledger") ? <Ledger token={token} /> : <AccessDenied />;
 
     case "lr":
-      return <LR />;
+      return canAccessModule("lr") ? <LR token={token} /> : <AccessDenied />;
 
     case "whatsapp-ai":
-      return <ComingSoon />;
+      return canAccessModule("whatsapp_ai") ? <ComingSoon /> : <AccessDenied />;
 
     case "reports":
-      return <ComingSoon />;
+      return canAccessModule("reports") ? <ComingSoon /> : <AccessDenied />;
 
     default:
       return <Dashboard />;
@@ -398,10 +395,16 @@ export default function SuperAdminPanel({ onLogout }) {
       <Sidebar
         activeSection={activeSection}
         setActiveSection={setActiveSection}
+        permissions={access.modules}
+        isSuperAdmin={isSuperAdmin}
       />
 
       <div className="flex min-w-0 flex-1 flex-col">
-        <Topbar onLogout={onLogout} />
+        <Topbar
+          onLogout={onLogout}
+          user={user}
+          profileAccess={access.profile}
+        />
 
         <main className="flex-1 overflow-y-auto p-5 sm:p-6 lg:p-8">
           <div className="mx-auto max-w-[1600px]">

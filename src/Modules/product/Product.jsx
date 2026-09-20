@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import ProductHeader from "./ProductHeader";
 import ProductSummary from "./ProductSummary";
 import ProductFilters from "./ProductFilters";
@@ -6,6 +6,12 @@ import ProductTable from "./ProductTable";
 import ProductForm from "./ProductForm";
 import ProductDetails from "./ProductDetails";
 import DeleteProductModal from "./DeleteProductModal";
+import {
+  createResource,
+  deleteResource,
+  listResource,
+  updateResource,
+} from "../../lib/api";
 
 const initialProducts = [
   {
@@ -186,8 +192,22 @@ const initialProducts = [
   },
 ];
 
-export default function Product() {
-  const [products, setProducts] = useState(initialProducts);
+const normalizeProduct = (product) => ({
+  ...product,
+  id: product._id || product.id,
+});
+
+export default function Product({ token }) {
+  const [products, setProducts] = useState(token ? [] : initialProducts);
+  const [error, setError] = useState("");
+
+  useEffect(() => {
+    if (!token) return;
+
+    listResource(token, "products")
+      .then((result) => setProducts(result.data.map(normalizeProduct)))
+      .catch((loadError) => setError(loadError.message));
+  }, [token]);
 
   const [search, setSearch] = useState("");
   const [category, setCategory] = useState("All");
@@ -239,37 +259,40 @@ export default function Product() {
     setShowForm(true);
   };
 
-  const handleSaveProduct = (productData) => {
-    if (editingProduct) {
+  const handleSaveProduct = async (productData) => {
+    try {
+      const result = editingProduct
+        ? await updateResource(token, "products", editingProduct.id, productData)
+        : await createResource(token, "products", productData);
+      const savedProduct = normalizeProduct(result.data);
+
       setProducts((prev) =>
-        prev.map((product) =>
-          product.id === editingProduct.id
-            ? { ...product, ...productData }
-            : product
-        )
+        editingProduct
+          ? prev.map((product) =>
+              product.id === editingProduct.id ? savedProduct : product
+            )
+          : [savedProduct, ...prev]
       );
-    } else {
-      const newProduct = {
-        ...productData,
-        id: `PROD-${String(products.length + 1).padStart(3, "0")}`,
-      };
-
-      setProducts((prev) => [newProduct, ...prev]);
+      setShowForm(false);
+      setEditingProduct(null);
+    } catch (saveError) {
+      setError(saveError.message);
     }
-
-    setShowForm(false);
-    setEditingProduct(null);
   };
 
-  const handleDeleteProduct = () => {
+  const handleDeleteProduct = async () => {
     if (!deleteProduct) return;
 
-    setProducts((prev) =>
-      prev.filter((product) => product.id !== deleteProduct.id)
-    );
-
-    setDeleteProduct(null);
-    setSelectedProduct(null);
+    try {
+      await deleteResource(token, "products", deleteProduct.id);
+      setProducts((prev) =>
+        prev.filter((product) => product.id !== deleteProduct.id)
+      );
+      setDeleteProduct(null);
+      setSelectedProduct(null);
+    } catch (deleteError) {
+      setError(deleteError.message);
+    }
   };
 
   const handleToggleStatus = (product) => {
@@ -298,6 +321,12 @@ export default function Product() {
 
   return (
     <div className="min-h-full bg-slate-50 p-6">
+
+      {error && (
+        <div className="mb-4 rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700" role="alert">
+          {error}
+        </div>
+      )}
 
       <ProductHeader onAdd={handleAddProduct} />
 

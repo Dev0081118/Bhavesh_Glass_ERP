@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import {
   ShieldCheck,
   Users,
@@ -11,6 +11,7 @@ import AccessControlHeader from "./AccessControlHeader";
 import StaffPermissionList from "./StaffPermissionList";
 import PermissionPanel from "./PermissionPanel";
 import PermissionSummary from "./PermissionSummary";
+import { getAccessUsers, updateAccessUser } from "../../lib/api";
 
 const staffSource =
   dummyData.dummyStaff ||
@@ -53,7 +54,14 @@ const createInitialPermissions = (staff) => {
   staff.forEach((person) => {
     const role = String(person.role || "").toLowerCase();
 
-    permissions[person.id] = {};
+    permissions[person.id] = {
+      ...(person.access?.modules || {}),
+      profile: person.access?.profile || {
+        view: true,
+        edit: role === "admin",
+        resetPassword: role === "admin",
+      },
+    };
 
     moduleSource.forEach((moduleName) => {
       const key = normalizeModuleKey(moduleName);
@@ -72,8 +80,8 @@ const createInitialPermissions = (staff) => {
   return permissions;
 };
 
-export default function AccessControl() {
-  const [staff] = useState(staffSource);
+export default function AccessControl({ token }) {
+  const [staff, setStaff] = useState(staffSource);
 
   const [permissions, setPermissions] = useState(() =>
     createInitialPermissions(staffSource)
@@ -86,6 +94,42 @@ export default function AccessControl() {
   const [search, setSearch] = useState("");
   const [roleFilter, setRoleFilter] = useState("All");
   const [departmentFilter, setDepartmentFilter] = useState("All");
+  const [isLoading, setIsLoading] = useState(Boolean(token));
+  const [error, setError] = useState("");
+
+  useEffect(() => {
+    if (!token) return;
+
+    const loadStaff = async () => {
+      try {
+        const result = await getAccessUsers(token);
+        const nextStaff = result.users.map((person) => ({
+          ...person,
+          id: person.userId,
+        }));
+        setStaff(nextStaff);
+        setPermissions(createInitialPermissions(nextStaff));
+        setSelectedStaffId(nextStaff[0]?.id || null);
+      } catch (loadError) {
+        setError(loadError.message);
+      } finally {
+        setIsLoading(false);
+      }
+    };
+
+    loadStaff();
+  }, [token]);
+
+  const persistPermissions = (staffId, nextPermissions) => {
+    if (!token) return;
+
+    updateAccessUser(token, staffId, {
+      modules: Object.fromEntries(
+        Object.entries(nextPermissions).filter(([key]) => key !== "profile")
+      ),
+      profile: nextPermissions.profile,
+    }).catch((saveError) => setError(saveError.message));
+  };
 
   const filteredStaff = useMemo(() => {
     const query = search.trim().toLowerCase();
@@ -139,6 +183,12 @@ export default function AccessControl() {
       ? permissions[selectedStaff.id]
       : {};
 
+  const selectedProfilePermissions = selectedPermissions.profile || {
+    view: true,
+    edit: false,
+    resetPassword: false,
+  };
+
   const enabledCount = moduleSource.filter(
     (moduleName) =>
       selectedPermissions[normalizeModuleKey(moduleName)]
@@ -152,43 +202,64 @@ export default function AccessControl() {
 
     const key = normalizeModuleKey(moduleName);
 
+    const nextPermissions = {
+      ...(permissions[selectedStaff.id] || {}),
+      [key]: value,
+    };
+
     setPermissions((previous) => ({
       ...previous,
-      [selectedStaff.id]: {
-        ...(previous[selectedStaff.id] || {}),
-        [key]: value,
-      },
+      [selectedStaff.id]: nextPermissions,
     }));
+    persistPermissions(selectedStaff.id, nextPermissions);
+  };
+
+  const updateProfilePermission = (permission, value) => {
+    if (!selectedStaff) return;
+
+    const nextPermissions = {
+      ...(permissions[selectedStaff.id] || {}),
+      profile: {
+        ...(permissions[selectedStaff.id]?.profile || {}),
+        [permission]: value,
+      },
+    };
+
+    setPermissions((previous) => ({
+      ...previous,
+      [selectedStaff.id]: nextPermissions,
+    }));
+    persistPermissions(selectedStaff.id, nextPermissions);
   };
 
   const enableAll = () => {
     if (!selectedStaff) return;
 
-    const nextPermissions = {};
-
-    moduleSource.forEach((moduleName) => {
-      nextPermissions[normalizeModuleKey(moduleName)] = true;
-    });
+    const nextPermissions = {
+      ...Object.fromEntries(moduleSource.map((moduleName) => [normalizeModuleKey(moduleName), true])),
+      profile: permissions[selectedStaff.id]?.profile || selectedProfilePermissions,
+    };
 
     setPermissions((previous) => ({
       ...previous,
       [selectedStaff.id]: nextPermissions,
     }));
+    persistPermissions(selectedStaff.id, nextPermissions);
   };
 
   const disableAll = () => {
     if (!selectedStaff) return;
 
-    const nextPermissions = {};
-
-    moduleSource.forEach((moduleName) => {
-      nextPermissions[normalizeModuleKey(moduleName)] = false;
-    });
+    const nextPermissions = {
+      ...Object.fromEntries(moduleSource.map((moduleName) => [normalizeModuleKey(moduleName), false])),
+      profile: permissions[selectedStaff.id]?.profile || selectedProfilePermissions,
+    };
 
     setPermissions((previous) => ({
       ...previous,
       [selectedStaff.id]: nextPermissions,
     }));
+    persistPermissions(selectedStaff.id, nextPermissions);
   };
 
   const resetPermissions = () => {
@@ -209,15 +280,33 @@ export default function AccessControl() {
           : moduleName === "Dashboard";
     });
 
+    const nextRolePermissions = {
+      ...nextPermissions,
+      profile: permissions[selectedStaff.id]?.profile || selectedProfilePermissions,
+    };
+
     setPermissions((previous) => ({
       ...previous,
-      [selectedStaff.id]: nextPermissions,
+      [selectedStaff.id]: nextRolePermissions,
     }));
+    persistPermissions(selectedStaff.id, nextRolePermissions);
   };
 
   return (
     <div className="min-h-full bg-[#f7f7f8] p-4 sm:p-6 lg:p-8">
       <div className="mx-auto max-w-[1600px] space-y-6">
+
+        {error && (
+          <div className="rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700" role="alert">
+            {error}
+          </div>
+        )}
+
+        {isLoading && (
+          <div className="rounded-xl border border-slate-200 bg-white px-4 py-3 text-sm text-slate-500">
+            Loading staff access...
+          </div>
+        )}
 
         <AccessControlHeader
           search={search}
@@ -251,7 +340,9 @@ export default function AccessControl() {
             staff={selectedStaff}
             modules={moduleSource}
             permissions={selectedPermissions}
+            profilePermissions={selectedProfilePermissions}
             onPermissionChange={updatePermission}
+            onProfilePermissionChange={updateProfilePermission}
             onEnableAll={enableAll}
             onDisableAll={disableAll}
             onReset={resetPermissions}

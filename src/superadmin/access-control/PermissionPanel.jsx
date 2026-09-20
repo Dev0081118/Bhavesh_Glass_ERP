@@ -25,10 +25,12 @@ export default function PermissionPanel({
   staff,
   modules,
   permissions,
+  profilePermissions,
   onPermissionChange,
   onEnableAll,
   onDisableAll,
   onReset,
+  onProfilePermissionChange,
 }) {
   if (!staff) {
     return (
@@ -254,6 +256,45 @@ export default function PermissionPanel({
             );
           })}
 
+        </div>
+
+        <div className="mt-5 rounded-2xl border border-slate-100 bg-slate-50/70 p-4">
+          <div>
+            <h3 className="text-sm font-semibold text-slate-900">
+              Profile Permissions
+            </h3>
+            <p className="mt-0.5 text-xs text-slate-400">
+              Control profile visibility and account actions.
+            </p>
+          </div>
+
+          <div className="mt-3 grid gap-2 sm:grid-cols-3">
+            {[
+              ["view", "View profile"],
+              ["edit", "Edit profile"],
+              ["resetPassword", "Reset password"],
+            ].map(([permission, label]) => {
+              const enabled = Boolean(profilePermissions?.[permission]);
+
+              return (
+                <button
+                  key={permission}
+                  type="button"
+                  role="switch"
+                  aria-checked={enabled}
+                  onClick={() => onProfilePermissionChange(permission, !enabled)}
+                  className={`flex items-center justify-between rounded-xl border px-3 py-2 text-left text-xs font-medium transition ${
+                    enabled
+                      ? "border-slate-300 bg-white text-slate-800"
+                      : "border-slate-100 bg-slate-100 text-slate-400"
+                  }`}
+                >
+                  {label}
+                  <span className={`h-2 w-2 rounded-full ${enabled ? "bg-emerald-500" : "bg-slate-300"}`} />
+                </button>
+              );
+            })}
+          </div>
         </div>
 
         {/* Footer */}

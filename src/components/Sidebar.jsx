@@ -121,8 +121,18 @@ const erpModules = [
 export default function Sidebar({
   activeSection,
   setActiveSection,
+  permissions = {},
+  isSuperAdmin = false,
 }) {
   const [collapsed, setCollapsed] = useState(false);
+
+  const canAccessModule = (moduleId) =>
+    isSuperAdmin || Boolean(permissions[moduleId.replace("-", "_")]);
+
+  const visibleNavigation = isSuperAdmin ? navigation : [];
+  const visibleErpModules = erpModules.filter((module) =>
+    canAccessModule(module.id)
+  );
 
   const renderNavItem = (item) => {
     const Icon = item.icon;
@@ -206,7 +216,7 @@ export default function Sidebar({
         )}
 
         <nav className="space-y-1">
-          {navigation.map(renderNavItem)}
+          {visibleNavigation.map(renderNavItem)}
         </nav>
 
         {/* ================================
@@ -222,7 +232,7 @@ export default function Sidebar({
         )}
 
         <nav className="space-y-1">
-          {erpModules.map(renderNavItem)}
+          {visibleErpModules.map(renderNavItem)}
         </nav>
 
       </div>

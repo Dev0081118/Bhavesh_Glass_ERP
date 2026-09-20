@@ -9,17 +9,18 @@ import {
   X,
 } from "lucide-react";
 
-const profile = {
+const defaultProfile = {
   name: "Super Admin",
   role: "Administrator",
   email: "superadmin123@example.com",
   phone: "+91 98765 43210",
 };
 
-export default function Profile({ onLogout }) {
+export default function Profile({ onLogout, user = defaultProfile, profileAccess = {} }) {
   const [isOpen, setIsOpen] = useState(false);
   const [currentPassword, setCurrentPassword] = useState("");
   const [newPassword, setNewPassword] = useState("");
+  const profile = { ...defaultProfile, ...user };
 
   const closeProfile = () => {
     setIsOpen(false);
@@ -96,6 +97,7 @@ export default function Profile({ onLogout }) {
             </div>
           </div>
 
+          {profileAccess.resetPassword !== false && (
           <form className="space-y-3 pt-4" onSubmit={(event) => event.preventDefault()}>
             <div className="flex items-center gap-2">
               <LockKeyhole size={16} className="text-slate-500" />
@@ -137,6 +139,7 @@ export default function Profile({ onLogout }) {
               Update password
             </button>
           </form>
+          )}
 
           <button
             type="button"

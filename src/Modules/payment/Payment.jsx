@@ -6,6 +6,7 @@ import PaymentTable from "./PaymentTable";
 import PaymentForm from "./PaymentForm";
 import PaymentDetails from "./PaymentDetails";
 import DeletePaymentModal from "./DeletePaymentModal";
+import useBackendResource from "../../hooks/useBackendResource";
 
 const saleBills = [
   {
@@ -94,8 +95,9 @@ const initialPayments = [
   },
 ];
 
-export default function Payment() {
-  const [payments, setPayments] = useState(initialPayments);
+export default function Payment({ token }) {
+  const resource = useBackendResource(token, "payments", initialPayments);
+  const { records: payments, save, remove } = resource;
 
   const [filters, setFilters] = useState({
     search: "",
@@ -175,31 +177,8 @@ export default function Payment() {
     };
   }, [payments]);
 
-  const handleSave = (formData) => {
-    if (editingPayment) {
-      setPayments((prev) =>
-        prev.map((payment) =>
-          payment.id === editingPayment.id
-            ? {
-                ...payment,
-                ...formData,
-              }
-            : payment
-        )
-      );
-    } else {
-      const newId = `PAY-${String(
-        payments.length + 1
-      ).padStart(3, "0")}`;
-
-      setPayments((prev) => [
-        ...prev,
-        {
-          id: newId,
-          ...formData,
-        },
-      ]);
-    }
+  const handleSave = async (formData) => {
+    await save(formData, editingPayment?.id);
 
     setShowForm(false);
     setEditingPayment(null);
@@ -210,14 +189,9 @@ export default function Payment() {
     setShowForm(true);
   };
 
-  const handleDelete = () => {
+  const handleDelete = async () => {
     if (!deletePayment) return;
-
-    setPayments((prev) =>
-      prev.filter(
-        (payment) => payment.id !== deletePayment.id
-      )
-    );
+    await remove(deletePayment.id);
 
     if (selectedPayment?.id === deletePayment.id) {
       setSelectedPayment(null);

@@ -4,6 +4,7 @@ import ProductionSummary from "./ProductionSummary";
 import ProductionFilters from "./ProductionFilters";
 import ProductionTable from "./ProductionTable";
 import ProductionForm from "./ProductionForm";
+import useBackendResource from "../../hooks/useBackendResource";
 import ProductionDetails from "./ProductionDetails";
 import DeleteProductionModal from "./DeleteProductionModal";
 
@@ -237,8 +238,9 @@ const managers = [
   },
 ];
 
-export default function Production() {
-  const [productions, setProductions] = useState(initialProduction);
+export default function Production({ token }) {
+  const resource = useBackendResource(token, "production", initialProduction);
+  const { records: productions, save, remove } = resource;
 
   const [filters, setFilters] = useState({
     search: "",
@@ -291,46 +293,15 @@ export default function Production() {
     setDeletingProduction(production);
   };
 
-  const handleSave = (formData) => {
-    if (editingProduction) {
-      setProductions((current) =>
-        current.map((item) =>
-          item.id === editingProduction.id
-            ? {
-                ...item,
-                ...formData,
-              }
-            : item
-        )
-      );
-    } else {
-      const nextNumber =
-        productions.length > 0
-          ? Math.max(
-              ...productions.map((item) =>
-                Number(item.id.replace("PRD-", ""))
-              )
-            ) + 1
-          : 1;
-
-      const newProduction = {
-        ...formData,
-        id: `PRD-${String(nextNumber).padStart(3, "0")}`,
-      };
-
-      setProductions((current) => [newProduction, ...current]);
-    }
-
+  const handleSave = async (formData) => {
+    await save(formData, editingProduction?.id);
     setFormOpen(false);
     setEditingProduction(null);
   };
 
-  const confirmDelete = () => {
+  const confirmDelete = async () => {
     if (!deletingProduction) return;
-
-    setProductions((current) =>
-      current.filter((item) => item.id !== deletingProduction.id)
-    );
+    await remove(deletingProduction.id);
 
     setDeletingProduction(null);
   };

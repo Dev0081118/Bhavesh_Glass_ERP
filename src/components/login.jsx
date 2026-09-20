@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { loginUser } from "../lib/api";
 
 const Login = ({ onLogin }) => {
   // Form states
@@ -7,25 +8,26 @@ const Login = ({ onLogin }) => {
   const [rememberMe, setRememberMe] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
   const [error, setError] = useState("");
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
   // Form submit
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
-
-    if (email !== "superadmin123@example.com" || password !== "admin123") {
-      setError("Invalid email or password.");
-      return;
-    }
-
     setError("");
-    onLogin();
+    setIsSubmitting(true);
 
-    setEmail("");
-    setPassword("");
-    setRememberMe(false);
-    setShowPassword(false);
-
-    // API call can be added here
+    try {
+      const result = await loginUser(email, password);
+      onLogin(result.user, result.token, rememberMe);
+      setEmail("");
+      setPassword("");
+      setRememberMe(false);
+      setShowPassword(false);
+    } catch (submitError) {
+      setError(submitError.message);
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   return (
@@ -138,9 +140,10 @@ const Login = ({ onLogin }) => {
             {/* Login Button */}
             <button
               type="submit"
+              disabled={isSubmitting}
               className="w-full rounded-xl bg-black py-3.5 text-sm font-semibold text-white transition duration-200 hover:bg-gray-800 active:scale-[0.99]"
             >
-              Sign in
+              {isSubmitting ? "Signing in..." : "Sign in"}
             </button>
           </form>
                 </div>

@@ -4,7 +4,7 @@ import {
 } from "lucide-react";
 import Profile from "./Profile";
 
-export default function Topbar({ onLogout }) {
+export default function Topbar({ onLogout, user, profileAccess }) {
   return (
     <header className="flex h-[76px] shrink-0 items-center justify-between border-b border-slate-200 bg-white px-6">
       {/* Search */}
@@ -56,7 +56,11 @@ export default function Topbar({ onLogout }) {
 
         <div className="h-7 w-px bg-slate-200" />
 
-        <Profile onLogout={onLogout} />
+        <Profile
+          onLogout={onLogout}
+          user={user}
+          profileAccess={profileAccess}
+        />
       </div>
     </header>
   );

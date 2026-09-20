@@ -6,6 +6,7 @@ import DispatchTable from "./DispatchTable";
 import DispatchForm from "./DispatchForm";
 import DispatchDetails from "./DispatchDetails";
 import DeleteDispatchModal from "./DeleteDispatchModal";
+import useBackendResource from "../../hooks/useBackendResource";
 
 const products = [
   {
@@ -242,8 +243,9 @@ const initialDispatches = [
   },
 ];
 
-export default function Dispatch() {
-  const [dispatches, setDispatches] = useState(initialDispatches);
+export default function Dispatch({ token }) {
+  const resource = useBackendResource(token, "dispatch", initialDispatches);
+  const { records: dispatches, save, remove } = resource;
 
   const [filters, setFilters] = useState({
     search: "",
@@ -297,51 +299,15 @@ export default function Dispatch() {
     setDeletingDispatch(dispatch);
   };
 
-  const handleSave = (formData) => {
-    if (editingDispatch) {
-      setDispatches((current) =>
-        current.map((item) =>
-          item.id === editingDispatch.id
-            ? {
-                ...item,
-                ...formData,
-              }
-            : item
-        )
-      );
-    } else {
-      const nextNumber =
-        dispatches.length > 0
-          ? Math.max(
-              ...dispatches.map((item) =>
-                Number(item.id.replace("DSP-", ""))
-              )
-            ) + 1
-          : 1;
-
-      const newDispatch = {
-        ...formData,
-        id: `DSP-${String(nextNumber).padStart(3, "0")}`,
-      };
-
-      setDispatches((current) => [
-        newDispatch,
-        ...current,
-      ]);
-    }
-
+  const handleSave = async (formData) => {
+    await save(formData, editingDispatch?.id);
     setFormOpen(false);
     setEditingDispatch(null);
   };
 
-  const confirmDelete = () => {
+  const confirmDelete = async () => {
     if (!deletingDispatch) return;
-
-    setDispatches((current) =>
-      current.filter(
-        (item) => item.id !== deletingDispatch.id
-      )
-    );
+    await remove(deletingDispatch.id);
 
     setDeletingDispatch(null);
   };

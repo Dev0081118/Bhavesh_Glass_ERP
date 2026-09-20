@@ -6,6 +6,7 @@ import SaleBillTable from "./SaleBillTable";
 import SaleBillForm from "./SaleBillForm";
 import SaleBillDetails from "./SaleBillDetails";
 import DeleteSaleBillModal from "./DeleteSaleBillModal";
+import useBackendResource from "../../hooks/useBackendResource";
 
 const products = [
   {
@@ -236,10 +237,9 @@ const prepareBill = (bill) => ({
   ...calculateTotals(bill.items),
 });
 
-export default function SaleBill() {
-  const [saleBills, setSaleBills] = useState(
-    initialSaleBills.map(prepareBill)
-  );
+export default function SaleBill({ token }) {
+  const resource = useBackendResource(token, "sale-bills", initialSaleBills.map(prepareBill));
+  const { records: saleBills, save, remove } = resource;
 
   const [filters, setFilters] = useState({
     search: "",
@@ -315,36 +315,10 @@ export default function SaleBill() {
     };
   }, [saleBills]);
 
-  const handleSave = (formData) => {
+  const handleSave = async (formData) => {
     const totals = calculateTotals(formData.items);
 
-    if (editingBill) {
-      setSaleBills((prev) =>
-        prev.map((bill) =>
-          bill.id === editingBill.id
-            ? {
-                ...bill,
-                ...formData,
-                ...totals,
-              }
-            : bill
-        )
-      );
-    } else {
-      const newId = `SB-${String(saleBills.length + 1).padStart(
-        3,
-        "0"
-      )}`;
-
-      setSaleBills((prev) => [
-        ...prev,
-        {
-          id: newId,
-          ...formData,
-          ...totals,
-        },
-      ]);
-    }
+    await save({ ...formData, ...totals }, editingBill?.id);
 
     setShowForm(false);
     setEditingBill(null);
@@ -355,12 +329,9 @@ export default function SaleBill() {
     setShowForm(true);
   };
 
-  const handleDelete = () => {
+  const handleDelete = async () => {
     if (!deleteBill) return;
-
-    setSaleBills((prev) =>
-      prev.filter((bill) => bill.id !== deleteBill.id)
-    );
+    await remove(deleteBill.id);
 
     if (selectedBill?.id === deleteBill.id) {
       setSelectedBill(null);

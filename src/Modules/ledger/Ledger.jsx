@@ -6,6 +6,7 @@ import LedgerTable from "./LedgerTable";
 import LedgerForm from "./LedgerForm";
 import LedgerDetails from "./LedgerDetails";
 import DeleteLedgerModal from "./DeleteLedgerModal";
+import useBackendResource from "../../hooks/useBackendResource";
 
 const initialEntries = [
   {
@@ -191,8 +192,9 @@ const emptyFilters = {
   dateTo: "",
 };
 
-function Ledger() {
-  const [entries, setEntries] = useState(initialEntries);
+function Ledger({ token }) {
+  const resource = useBackendResource(token, "ledger", initialEntries);
+  const { records: entries, save, remove } = resource;
 
   const [filters, setFilters] = useState(emptyFilters);
 
@@ -295,37 +297,16 @@ function Ledger() {
     setIsFormOpen(true);
   };
 
-  const handleSave = (formData) => {
-    if (editingEntry) {
-      setEntries((current) =>
-        current.map((entry) =>
-          entry.id === editingEntry.id
-            ? {
-                ...entry,
-                ...formData,
-              }
-            : entry
-        )
-      );
-    } else {
-      const newEntry = {
-        ...formData,
-        id: `LED-${String(entries.length + 1).padStart(3, "0")}`,
-      };
-
-      setEntries((current) => [newEntry, ...current]);
-    }
-
+  const handleSave = async (formData) => {
+    await save(formData, editingEntry?.id);
     setIsFormOpen(false);
     setEditingEntry(null);
   };
 
-  const handleDelete = () => {
+  const handleDelete = async () => {
     if (!deleteEntry) return;
 
-    setEntries((current) =>
-      current.filter((entry) => entry.id !== deleteEntry.id)
-    );
+    await remove(deleteEntry.id);
 
     if (selectedEntry?.id === deleteEntry.id) {
       setSelectedEntry(null);

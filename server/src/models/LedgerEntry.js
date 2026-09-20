@@ -7,7 +7,7 @@ const ledgerEntrySchema = new mongoose.Schema(
     party: { type: mongoose.Schema.Types.ObjectId, ref: "Party", required: true, index: true },
     transactionType: { type: String, enum: ["Sale", "Purchase", "Payment Received", "Payment Made", "Adjustment"], required: true },
     referenceType: { type: String, enum: ["Sale Bill", "Purchase", "Payment", "Manual"], required: true },
-    referenceId: { type: mongoose.Schema.Types.ObjectId },
+    referenceId: { type: String, trim: true },
     debit: { type: Number, default: 0, min: 0 },
     credit: { type: Number, default: 0, min: 0 },
     balance: { type: Number, default: 0 },

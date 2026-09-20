@@ -1,5 +1,20 @@
 const mongoose = require("mongoose");
 
+const defaultModules = [
+  "dashboard",
+  "inventory",
+  "product",
+  "purchase",
+  "production",
+  "dispatch",
+  "sale_bill",
+  "payment",
+  "ledger",
+  "lr",
+  "whatsapp_ai",
+  "reports",
+];
+
 const userSchema = new mongoose.Schema(
   {
     name: { type: String, required: true, trim: true },
@@ -15,8 +30,34 @@ const userSchema = new mongoose.Schema(
     manager: { type: mongoose.Schema.Types.ObjectId, ref: "User", default: null },
     status: { type: String, enum: ["Active", "Inactive"], default: "Active", index: true },
     lastLoginAt: { type: Date },
+    access: {
+      modules: {
+        type: Map,
+        of: Boolean,
+        default: () => new Map([["dashboard", true]]),
+      },
+      profile: {
+        view: { type: Boolean, default: true },
+        edit: { type: Boolean, default: false },
+        resetPassword: { type: Boolean, default: false },
+      },
+    },
   },
   { timestamps: true }
 );
+
+userSchema.statics.defaultAccessForRole = (role) => {
+  if (role === "Super Admin") {
+    return {
+      modules: Object.fromEntries(defaultModules.map((module) => [module, true])),
+      profile: { view: true, edit: true, resetPassword: true },
+    };
+  }
+
+  return {
+    modules: Object.fromEntries(defaultModules.map((module) => [module, module === "dashboard"])),
+    profile: { view: true, edit: false, resetPassword: false },
+  };
+};
 
 module.exports = mongoose.model("User", userSchema);

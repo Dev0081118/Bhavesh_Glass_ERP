@@ -1,10 +1,10 @@
 import {
   Bell,
   Search,
-  ChevronDown,
 } from "lucide-react";
+import Profile from "./Profile";
 
-export default function Topbar() {
+export default function Topbar({ onLogout }) {
   return (
     <header className="flex h-[76px] shrink-0 items-center justify-between border-b border-slate-200 bg-white px-6">
       {/* Search */}
@@ -56,26 +56,7 @@ export default function Topbar() {
 
         <div className="h-7 w-px bg-slate-200" />
 
-        {/* Profile */}
-        <button className="flex items-center gap-3 rounded-xl px-2 py-1.5 transition hover:bg-slate-50">
-          <div className="flex h-9 w-9 items-center justify-center rounded-full bg-slate-900 text-xs font-semibold text-white">
-            SA
-          </div>
-
-          <div className="hidden text-left sm:block">
-            <p className="text-[13px] font-semibold text-slate-900">
-              Super Admin
-            </p>
-            <p className="text-[11px] text-slate-400">
-              Administrator
-            </p>
-          </div>
-
-          <ChevronDown
-            size={15}
-            className="hidden text-slate-400 sm:block"
-          />
-        </button>
+        <Profile onLogout={onLogout} />
       </div>
     </header>
   );

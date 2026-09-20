@@ -1,19 +1,24 @@
-import React, { useState } from "react";
+import { useState } from "react";
 
-const Login = () => {
+const Login = ({ onLogin }) => {
   // Form states
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [rememberMe, setRememberMe] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
+  const [error, setError] = useState("");
 
   // Form submit
   const handleSubmit = (e) => {
     e.preventDefault();
 
-    console.log("Email:", email);
-    console.log("Password:", password);
-    console.log("Remember Me:", rememberMe);
+    if (email !== "superadmin123@example.com" || password !== "admin123") {
+      setError("Invalid email or password.");
+      return;
+    }
+
+    setError("");
+    onLogin();
 
     setEmail("");
     setPassword("");
@@ -107,6 +112,12 @@ const Login = () => {
                 </button>
               </div>
             </div>
+
+            {error && (
+              <p className="text-sm font-medium text-red-600" role="alert">
+                {error}
+              </p>
+            )}
 
             {/* Remember Me */}
             <div className="flex items-center">

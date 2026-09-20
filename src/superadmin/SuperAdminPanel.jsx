@@ -321,7 +321,7 @@ function Placeholder({ section }) {
   );
 }
 
-export default function SuperAdminPanel() {
+export default function SuperAdminPanel({ onLogout }) {
   const [activeSection, setActiveSection] = useState("dashboard");
 
  const renderContent = () => {
@@ -401,7 +401,7 @@ export default function SuperAdminPanel() {
       />
 
       <div className="flex min-w-0 flex-1 flex-col">
-        <Topbar />
+        <Topbar onLogout={onLogout} />
 
         <main className="flex-1 overflow-y-auto p-5 sm:p-6 lg:p-8">
           <div className="mx-auto max-w-[1600px]">

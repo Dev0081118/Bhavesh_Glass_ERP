@@ -8,113 +8,6 @@ import StockAdjustmentModal from "./StockAdjustmentModal";
 import InventoryDetails from "./InventoryDetails";
 import { listResource, updateResource } from "../../lib/api";
 
-const INITIAL_INVENTORY = [
-  {
-    id: "INV-001",
-    productId: "PROD-001",
-    name: "Classic Black Photo Frame",
-    sku: "BG-FRM-001",
-    category: "Photo Frame",
-    size: "1 Inch",
-    location: "Main Warehouse",
-    available: 72,
-    reserved: 10,
-    reorderLevel: 20,
-    unit: "Piece",
-  },
-  {
-    id: "INV-002",
-    productId: "PROD-002",
-    name: "Premium Wooden Frame",
-    sku: "BG-FRM-002",
-    category: "Photo Frame",
-    size: "2 Inch",
-    location: "Main Warehouse",
-    available: 34,
-    reserved: 5,
-    reorderLevel: 15,
-    unit: "Piece",
-  },
-  {
-    id: "INV-003",
-    productId: "PROD-003",
-    name: "White MDF Frame",
-    sku: "BG-FRM-003",
-    category: "MDF Frame",
-    size: "1 Inch",
-    location: "Production Store",
-    available: 12,
-    reserved: 4,
-    reorderLevel: 20,
-    unit: "Piece",
-  },
-  {
-    id: "INV-004",
-    productId: "PROD-004",
-    name: "Golden Designer Frame",
-    sku: "BG-FRM-004",
-    category: "Designer Frame",
-    size: "3 Inch",
-    location: "Main Warehouse",
-    available: 0,
-    reserved: 0,
-    reorderLevel: 10,
-    unit: "Piece",
-  },
-  {
-    id: "INV-005",
-    productId: "PROD-005",
-    name: "Frame Back Board",
-    sku: "BG-BRD-001",
-    category: "Raw Material",
-    size: "12x18",
-    location: "Raw Material Store",
-    available: 145,
-    reserved: 20,
-    reorderLevel: 50,
-    unit: "Piece",
-  },
-  {
-    id: "INV-006",
-    productId: "PROD-006",
-    name: "Glass Sheet",
-    sku: "BG-GLS-001",
-    category: "Raw Material",
-    size: "12x18",
-    location: "Glass Store",
-    available: 85,
-    reserved: 12,
-    reorderLevel: 30,
-    unit: "Sheet",
-  },
-  {
-    id: "INV-007",
-    productId: "PROD-007",
-    name: "Metal Frame Clip",
-    sku: "BG-CLP-001",
-    category: "Accessories",
-    size: "Small",
-    location: "Accessories Store",
-    available: 520,
-    reserved: 50,
-    reorderLevel: 100,
-    unit: "Piece",
-  },
-  {
-    id: "INV-008",
-    productId: "PROD-008",
-    name: "Photo Printing Paper",
-    sku: "BG-PPR-001",
-    category: "Printing Material",
-    size: "A4",
-    location: "Printing Store",
-    available: 8,
-    reserved: 2,
-    reorderLevel: 25,
-    unit: "Pack",
-  },
-];
-
 const normalizeInventory = (item) => ({
   ...item,
   id: item._id || item.id,
@@ -307,7 +200,7 @@ const Inventory = ({ token }) => {
   };
 
   return (
-    <div className="min-h-full bg-slate-50 p-4 sm:p-6 lg:p-8">
+    <div className="min-h-full p-4 sm:p-6 ">
       {error && (
         <div className="mb-4 rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700" role="alert">
           {error}

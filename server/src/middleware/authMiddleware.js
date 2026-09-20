@@ -1,5 +1,6 @@
 const jwt = require("jsonwebtoken");
 const User = require("../models/User");
+const SystemSettings = require("../models/SystemSettings");
 
 const protect = async (req, res, next) => {
   try {
@@ -17,6 +18,16 @@ const protect = async (req, res, next) => {
 
     if (!user || user.status !== "Active") {
       return res.status(401).json({ message: "User is not authorized." });
+    }
+
+    if (user.role !== "Super Admin") {
+      const settings = await SystemSettings.findOne({ key: "global" }).lean();
+      if (settings && !settings.isSystemActive) {
+        return res.status(503).json({
+          code: "SYSTEM_MAINTENANCE",
+          message: settings.reason || "The ERP system is temporarily unavailable.",
+        });
+      }
     }
 
     req.user = user;

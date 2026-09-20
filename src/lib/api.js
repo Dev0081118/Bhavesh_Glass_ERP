@@ -13,7 +13,10 @@ const request = async (path, options = {}) => {
   const data = await response.json().catch(() => ({}));
 
   if (!response.ok) {
-    throw new Error(data.message || "Request failed.");
+    const error = new Error(data.message || "Request failed.");
+    error.status = response.status;
+    error.code = data.code;
+    throw error;
   }
 
   return data;
@@ -40,6 +43,14 @@ export const updateAccessUser = (token, userId, access) =>
 export const listStaff = (token) => request("/staff", { token });
 export const getOverview = (token) => request("/overview", { token });
 export const getAnalytics = (token) => request("/analytics", { token });
+export const getSystemStatus = () => request("/system/status");
+
+export const updateKillSwitch = (token, isSystemActive, reason) =>
+  request("/system/kill-switch", {
+    method: "PATCH",
+    token,
+    body: JSON.stringify({ isSystemActive, reason }),
+  });
 
 export const createStaff = (token, data) =>
   request("/staff", {

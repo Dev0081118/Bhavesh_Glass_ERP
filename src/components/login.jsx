@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { loginUser } from "../lib/api";
 
-const Login = ({ onLogin }) => {
+const Login = ({ onLogin, onMaintenance }) => {
   // Form states
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -24,7 +24,11 @@ const Login = ({ onLogin }) => {
       setRememberMe(false);
       setShowPassword(false);
     } catch (submitError) {
-      setError(submitError.message);
+      if (submitError.code === "SYSTEM_MAINTENANCE") {
+        onMaintenance?.(submitError.message);
+      } else {
+        setError(submitError.message);
+      }
     } finally {
       setIsSubmitting(false);
     }

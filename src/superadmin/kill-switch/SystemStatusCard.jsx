@@ -10,10 +10,16 @@ import {
 const formatDate = (date) => {
   if (!date) return "No changes recorded";
 
+  const normalizedDate = date instanceof Date ? date : new Date(date);
+
+  if (Number.isNaN(normalizedDate.getTime())) {
+    return "No changes recorded";
+  }
+
   return new Intl.DateTimeFormat("en-IN", {
     dateStyle: "medium",
     timeStyle: "short",
-  }).format(date);
+  }).format(normalizedDate);
 };
 
 const SystemStatusCard = ({ isSystemActive, systemInfo }) => {

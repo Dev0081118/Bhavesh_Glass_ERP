@@ -11,4 +11,5 @@ module.exports = {
   LR: require("./LR"),
   LedgerEntry: require("./LedgerEntry"),
   Activity: require("./Activity"),
+  SystemSettings: require("./SystemSettings"),
 };

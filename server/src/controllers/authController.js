@@ -1,6 +1,7 @@
 const bcrypt = require("bcrypt");
 const jwt = require("jsonwebtoken");
 const User = require("../models/User");
+const SystemSettings = require("../models/SystemSettings");
 
 const publicUser = (user) => ({
   id: user._id,
@@ -102,6 +103,16 @@ const login = async (req, res) => {
 
     if (!isPasswordValid || user.status !== "Active") {
       return res.status(401).json({ message: "Invalid email or password." });
+    }
+
+    if (user.role !== "Super Admin") {
+      const settings = await SystemSettings.findOne({ key: "global" }).lean();
+      if (settings && !settings.isSystemActive) {
+        return res.status(503).json({
+          code: "SYSTEM_MAINTENANCE",
+          message: settings.reason || "The ERP system is temporarily unavailable.",
+        });
+      }
     }
 
     user.lastLoginAt = new Date();

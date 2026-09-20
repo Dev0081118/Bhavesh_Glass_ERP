@@ -336,7 +336,7 @@ export default function SuperAdminPanel({ onLogout, user, token }) {
       return isSuperAdmin ? <ComingSoon /> : <AccessDenied />;
 
     case "kill-switch":
-      return isSuperAdmin ? <KillSwitch /> : <AccessDenied />;
+      return isSuperAdmin ? <KillSwitch token={token} /> : <AccessDenied />;
 
     case "system-settings":
       return isSuperAdmin ? <ComingSoon /> : <AccessDenied />;

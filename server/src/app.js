@@ -6,6 +6,7 @@ const resourceRoutes = require("./routes/resourceRoutes");
 const staffRoutes = require("./routes/staffRoutes");
 const overviewRoutes = require("./routes/overviewRoutes");
 const analyticsRoutes = require("./routes/analyticsRoutes");
+const systemRoutes = require("./routes/systemRoutes");
 
 const app = express();
 
@@ -31,6 +32,7 @@ app.use("/api/access", accessRoutes);
 app.use("/api/staff", staffRoutes);
 app.use("/api/overview", overviewRoutes);
 app.use("/api/analytics", analyticsRoutes);
+app.use("/api/system", systemRoutes);
 app.use("/api", resourceRoutes);
 
 module.exports = app;

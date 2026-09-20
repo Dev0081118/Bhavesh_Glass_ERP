@@ -129,7 +129,9 @@ export default function Sidebar({
   const canAccessModule = (moduleId) =>
     isSuperAdmin || Boolean(permissions[moduleId.replace("-", "_")]);
 
-  const visibleNavigation = isSuperAdmin ? navigation : [];
+  const visibleNavigation = isSuperAdmin
+    ? navigation
+    : navigation.filter((item) => item.id === "dashboard" && canAccessModule(item.id));
   const visibleErpModules = erpModules.filter((module) =>
     canAccessModule(module.id)
   );

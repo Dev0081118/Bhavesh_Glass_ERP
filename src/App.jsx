@@ -1,6 +1,7 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import Login from './components/login'
 import SuperAdminPanel from "./superadmin/SuperAdminPanel";
+import { getCurrentUser } from "./lib/api";
 const App = () => {
   const [session, setSession] = useState(() => {
     try {
@@ -10,12 +11,21 @@ const App = () => {
     }
   });
 
-  const handleLogin = (user, token, rememberMe) => {
+  useEffect(() => {
+    if (!session?.token) return;
+
+    getCurrentUser(session.token)
+      .then(({ user }) => setSession((current) => ({ ...current, user })))
+      .catch(() => {
+        localStorage.removeItem("erp-session");
+        setSession(null);
+      });
+  }, [session?.token]);
+
+  const handleLogin = (user, token) => {
     const nextSession = { user, token };
     setSession(nextSession);
-    if (rememberMe) {
-      localStorage.setItem("erp-session", JSON.stringify(nextSession));
-    }
+    localStorage.setItem("erp-session", JSON.stringify(nextSession));
   };
 
   const handleLogout = () => {

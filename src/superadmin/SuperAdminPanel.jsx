@@ -28,6 +28,7 @@ import Topbar from "../components/Topbar";
 import { dashboardStats } from "../data/dummyData";
 import { normalizeAccess } from "../data/accessControl";
 import { getOverview } from "../lib/api";
+import AdminDashboard from "../components/AdminDashboard";
 
 function StatCard({ title, value, icon: Icon, description }) {
   return (
@@ -309,6 +310,10 @@ export default function SuperAdminPanel({ onLogout, user, token }) {
   const canAccessModule = (module) => isSuperAdmin || Boolean(access.modules[module]);
 
  const renderContent = () => {
+  if (!isSuperAdmin && activeSection === "dashboard") {
+    return <AdminDashboard user={user} token={token} permissions={access.modules} />;
+  }
+
   switch (activeSection) {
     // =========================
     // SUPER ADMIN

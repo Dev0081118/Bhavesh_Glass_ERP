@@ -52,13 +52,8 @@ const createInitialPermissions = (staff) => {
     moduleSource.forEach((moduleName) => {
       const key = normalizeModuleKey(moduleName);
 
-      // Admin gets all modules initially.
-      if (role === "admin") {
-        permissions[person.id][key] = true;
-      } else {
-        // Managers and Employees start with a smaller set.
-        permissions[person.id][key] =
-          moduleName === "Dashboard";
+      if (typeof permissions[person.id][key] !== "boolean") {
+        permissions[person.id][key] = moduleName === "Dashboard";
       }
     });
   });

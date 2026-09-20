@@ -25,6 +25,8 @@ export const loginUser = (email, password) =>
     body: JSON.stringify({ email, password }),
   });
 
+export const getCurrentUser = (token) => request("/auth/me", { token });
+
 export const getAccessUsers = (token) =>
   request("/access/users", { token });
 
@@ -37,6 +39,7 @@ export const updateAccessUser = (token, userId, access) =>
 
 export const listStaff = (token) => request("/staff", { token });
 export const getOverview = (token) => request("/overview", { token });
+export const getAnalytics = (token) => request("/analytics", { token });
 
 export const createStaff = (token, data) =>
   request("/staff", {

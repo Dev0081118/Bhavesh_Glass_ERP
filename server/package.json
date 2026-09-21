@@ -6,6 +6,7 @@
   "scripts": {
     "start": "node server.js",
     "seed:superadmin": "node src/scripts/seedSuperAdmin.js",
+    "recover:kill-switch": "node src/scripts/disableKillSwitch.js",
     "test": "node --check server.js"
   },
   "keywords": [],

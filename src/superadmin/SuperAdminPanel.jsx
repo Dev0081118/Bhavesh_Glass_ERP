@@ -69,7 +69,7 @@ export default function SuperAdminPanel({ onLogout, user, token }) {
   };
 
   return (
-    <div className="flex h-screen overflow-hidden bg-[#f5f5f7]">
+    <div className="flex h-screen overflow-hidden bg-slate-50">
       <Sidebar
         activeSection={activeSection}
         setActiveSection={navigate}

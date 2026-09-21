@@ -35,7 +35,7 @@ const Login = ({ onLogin, onMaintenance }) => {
   };
 
   return (
-    <div className="min-h-screen bg-[#f5f6f8] px-4 py-8 sm:px-6 sm:py-12">
+    <div className="min-h-screen bg-slate-50 px-4 py-8 sm:px-6 sm:py-12">
       <div className="mx-auto flex min-h-[calc(100vh-4rem)] w-full max-w-md flex-col justify-center sm:min-h-[calc(100vh-6rem)]">
 
         {/* Logo & Heading */}

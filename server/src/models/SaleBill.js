@@ -28,6 +28,24 @@ const saleBillSchema = new mongoose.Schema(
     taxableAmount: { type: Number, default: 0, min: 0 },
     gstAmount: { type: Number, default: 0, min: 0 },
     grandTotal: { type: Number, default: 0, min: 0 },
+
+    /*
+     * Immutable copy of the company stamp / signature and the default
+     * terms & conditions, captured from the global SystemSettings at the
+     * moment the bill is created.
+     *
+     * Later changes to System Settings must NEVER affect existing bills,
+     * which is why this snapshot is only written on creation.
+     */
+    billingSnapshot: {
+      companyStamp: {
+        dataUrl: { type: String, default: "" },
+        fileName: { type: String, default: "" },
+        mimeType: { type: String, default: "" },
+      },
+      termsAndConditions: { type: String, default: "" },
+      capturedAt: { type: Date, default: null },
+    },
   },
   { timestamps: true }
 );

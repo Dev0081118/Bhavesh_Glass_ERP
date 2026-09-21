@@ -81,8 +81,19 @@ const createResourceController = (Model, options = {}) => {
   };
 
   const create = async (req, res) => {
+    let payload = normalizePayload(req.body, options);
+
+    /*
+     * Optional beforeCreate hook (e.g. SaleBill captures a billing
+     * snapshot from the global System Settings). Runs after payload
+     * normalization and receives the already-validated req.user.
+     */
+    if (options.beforeCreate) {
+      payload = (await options.beforeCreate(req, payload)) || payload;
+    }
+
     const document = await Model.create({
-      ...normalizePayload(req.body, options),
+      ...payload,
       ...(options.createdBy ? { createdBy: req.user._id } : {}),
     });
     return res.status(201).json({ data: document });

@@ -3,6 +3,21 @@ const jwt = require("jsonwebtoken");
 const User = require("../models/User");
 const SystemSettings = require("../models/SystemSettings");
 
+const defaultModules = [
+  "dashboard",
+  "inventory",
+  "product",
+  "purchase",
+  "production",
+  "dispatch",
+  "sale_bill",
+  "payment",
+  "ledger",
+  "lr",
+  "whatsapp_ai",
+  "reports",
+];
+
 const publicUser = (user) => ({
   id: user._id,
   name: user.name,
@@ -260,9 +275,123 @@ const getCurrentUser = async (
   });
 };
 
+/*
+ * ============================================================
+ * ACCESS CONTROL (used by /api/access routes)
+ * ============================================================
+ */
+
+const publicAccessUser = (user) => ({
+  ...publicUser(user),
+  userId: user._id.toString(),
+});
+
+/*
+ * LIST USERS for the Access Control page.
+ * Super Admin is excluded: their access is always full.
+ */
+const listUsers = async (req, res) => {
+  try {
+    const users = await User.find({
+      role: { $ne: "Super Admin" },
+    }).sort({ createdAt: -1 });
+
+    return res.json({
+      users: users.map(publicAccessUser),
+    });
+  } catch (error) {
+    console.error("listUsers error:", error);
+
+    return res.status(500).json({
+      message: "Unable to load access users.",
+    });
+  }
+};
+
+/*
+ * UPDATE a user's module/profile access.
+ * Body: { modules: { dashboard: true, ... }, profile: { edit, resetPassword } }
+ */
+const updateUserAccess = async (req, res) => {
+  try {
+    const { modules, profile } = req.body || {};
+
+    const user = await User.findOne({
+      _id: req.params.userId,
+      role: { $ne: "Super Admin" },
+    });
+
+    if (!user) {
+      return res.status(404).json({
+        message: "User not found.",
+      });
+    }
+
+    if (modules !== undefined) {
+      if (
+        typeof modules !== "object" ||
+        modules === null ||
+        Array.isArray(modules)
+      ) {
+        return res.status(400).json({
+          message: "modules must be an object of booleans.",
+        });
+      }
+
+      const sanitized = {};
+
+      for (const [key, value] of Object.entries(modules)) {
+        if (
+          defaultModules.includes(String(key)) &&
+          typeof value === "boolean"
+        ) {
+          sanitized[key] = value;
+        }
+      }
+
+      user.set("access.modules", sanitized);
+    }
+
+    if (profile !== undefined) {
+      if (
+        typeof profile !== "object" ||
+        profile === null ||
+        Array.isArray(profile)
+      ) {
+        return res.status(400).json({
+          message: "profile must be an object.",
+        });
+      }
+
+      /*
+       * Viewing your own profile is always allowed.
+       */
+      user.access.profile = {
+        view: true,
+        edit: Boolean(profile.edit),
+        resetPassword: Boolean(profile.resetPassword),
+      };
+    }
+
+    await user.save();
+
+    return res.json({
+      user: publicAccessUser(user),
+    });
+  } catch (error) {
+    console.error("updateUserAccess error:", error);
+
+    return res.status(500).json({
+      message: "Unable to update access.",
+    });
+  }
+};
+
 module.exports = {
   register,
   login,
   getCurrentUser,
   createInitialPassword,
+  listUsers,
+  updateUserAccess,
 };

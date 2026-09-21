@@ -1,10 +1,13 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import Login from "./components/login";
 import SuperAdminPanel from "./superadmin/SuperAdminPanel";
 import { getCurrentUser, getSystemStatus } from "./lib/api";
 import SystemMaintenance from "./components/SystemMaintenance";
+import { useTheme } from "./context/ThemeContext";
 
 const App = () => {
+  const { syncTheme } = useTheme();
+  const lastSyncedTokenRef = useRef(null);
   const [session, setSession] = useState(() => {
     try {
       return JSON.parse(localStorage.getItem("erp-session")) || null;
@@ -103,6 +106,16 @@ const App = () => {
             : current
         );
 
+        /*
+         * Sync the MongoDB-stored theme into the ThemeContext +
+         * localStorage so the whole ERP follows the global setting.
+         * Runs once per token (the 10s verifier must not spam it).
+         */
+        if (session.token && lastSyncedTokenRef.current !== session.token) {
+          lastSyncedTokenRef.current = session.token;
+          syncTheme(session.token);
+        }
+
         setIsBooting(false);
       } catch (error) {
         if (!isCurrent) return;
@@ -167,6 +180,7 @@ const App = () => {
 
   const handleLogout = () => {
     localStorage.removeItem("erp-session");
+    lastSyncedTokenRef.current = null;
 
     /*
      * Show a blank screen while checking whether

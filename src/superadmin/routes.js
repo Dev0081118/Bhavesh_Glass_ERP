@@ -20,6 +20,7 @@ import {
 import StaffManagement from "./staff/StaffManagement";
 import AccessControl from "./access-control/AccessControl";
 import KillSwitch from "./kill-switch/KillSwitch";
+import SystemSettings from "./system-settings/SystemSettings";
 import ComingSoon from "../components/ComingSoon";
 import Inventory from "../Modules/inventory/Inventory";
 import Product from "../Modules/product/Product";
@@ -91,7 +92,7 @@ export const superAdminSections = [
     icon: Settings,
     group: "management",
     guard: "super-admin",
-    Element: ComingSoon,
+    Element: SystemSettings,
   },
   {
     id: "inventory",

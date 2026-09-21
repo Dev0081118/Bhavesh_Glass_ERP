@@ -140,6 +140,25 @@ export const updateKillSwitch = (
   });
 
 /*
+ * GLOBAL SYSTEM SETTINGS
+ * (theme / company stamp / terms & conditions)
+ */
+export const getSystemSettings = (token) =>
+  request("/system/settings", {
+    ...(token ? { token } : {}),
+  });
+
+export const updateSystemSettings = (
+  token,
+  settings
+) =>
+  request("/system/settings", {
+    method: "PATCH",
+    token,
+    body: JSON.stringify(settings),
+  });
+
+/*
  * STAFF
  */
 

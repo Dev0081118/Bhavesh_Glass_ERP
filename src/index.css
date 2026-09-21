@@ -16,3 +16,14 @@ body {
 		overflow-y: auto;
 	}
 }
+@keyframes toastIn {
+  from {
+    opacity: 0;
+    transform: translateX(20px) translateY(-8px);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateX(0) translateY(0);
+  }
+}

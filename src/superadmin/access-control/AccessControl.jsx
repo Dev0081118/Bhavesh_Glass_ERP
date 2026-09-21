@@ -596,7 +596,7 @@ export default function AccessControl({
   };
 
   return (
-    <div className="min-h-full bg-[#f7f7f8] p-4 sm:p-6 lg:p-8">
+    <div className="min-h-full  p-4 sm:p-6 ">
       <div className="mx-auto max-w-[1600px] space-y-6">
 
         {error && (

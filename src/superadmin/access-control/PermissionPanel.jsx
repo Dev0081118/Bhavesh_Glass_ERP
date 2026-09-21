@@ -279,7 +279,7 @@ export default function PermissionPanel({
 
       {/* SCROLL AREA */}
 
-      <div className="h-[500px] overflow-y-auto p-4 sm:p-6">
+      <div className="h-[480px] overflow-y-auto p-4 sm:p-6">
 
         {/* MODULES */}
 

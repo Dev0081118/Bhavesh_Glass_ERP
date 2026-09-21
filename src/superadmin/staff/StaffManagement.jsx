@@ -19,6 +19,7 @@ import {
   deleteStaff as removeStaff,
   listStaff,
   updateStaff,
+  updateStaffStatus,
 } from "../../lib/api";
 
 import { useToast } from "../../components/ToastProvider";
@@ -55,41 +56,73 @@ export default function StaffManagement({ token }) {
   const [deleteStaff, setDeleteStaff] =
     useState(null);
 
-  // =========================
-  // LOAD STAFF
-  // =========================
+  /*
+   * =========================
+   * LOAD STAFF
+   * =========================
+   */
 
   useEffect(() => {
     if (!token) return;
 
-    listStaff(token)
-      .then((result) => {
-        setStaff(result.staff || []);
-      })
-      .catch((loadError) => {
+    const loadStaff = async () => {
+      try {
+        const result = await listStaff(token);
+
+        const normalizedStaff = (
+          result.staff || []
+        ).map((person) => ({
+          ...person,
+
+          // Normalize IDs so all comparisons
+          // work reliably with MongoDB ObjectIds.
+          id: String(person.id),
+
+          managerId: person.managerId
+            ? String(person.managerId)
+            : null,
+
+          // Preserve backend-provided managerName.
+          managerName:
+            person.managerName || null,
+
+          status:
+            person.status || "Active",
+        }));
+
+        setStaff(normalizedStaff);
+      } catch (loadError) {
         showToast(
           "error",
           "Unable to Load Staff",
-          loadError.message || "Something went wrong."
+          loadError.message ||
+            "Something went wrong while loading staff."
         );
-      });
+      }
+    };
+
+    loadStaff();
   }, [token, showToast]);
 
-  // =========================
-  // FILTER
-  // =========================
+  /*
+   * =========================
+   * FILTER STAFF
+   * =========================
+   */
 
   const filteredStaff = staff.filter((person) => {
-    const searchValue = search.toLowerCase();
+    const searchValue =
+      search.trim().toLowerCase();
 
     const matchesSearch =
+      !searchValue ||
       person.name
         ?.toLowerCase()
         .includes(searchValue) ||
       person.email
         ?.toLowerCase()
         .includes(searchValue) ||
-      person.phone?.includes(search);
+      person.phone?.includes(searchValue);
 
     const matchesRole =
       roleFilter === "All" ||
@@ -106,28 +139,40 @@ export default function StaffManagement({ token }) {
     );
   });
 
-  // =========================
-  // ADD MANAGER NAME
-  // =========================
+  /*
+   * =========================
+   * MANAGER NAMES
+   * =========================
+   *
+   * Backend already returns managerName.
+   * We preserve it first.
+   *
+   * Local lookup is only a fallback.
+   */
 
-  const staffWithManagerNames = filteredStaff.map((person) => {
-  const manager = staff.find(
-    (item) =>
-      String(item.id) === String(person.managerId)
-  );
+  const staffWithManagerNames =
+    filteredStaff.map((person) => {
+      const manager = staff.find(
+        (item) =>
+          String(item.id) ===
+          String(person.managerId)
+      );
 
-  return {
-    ...person,
-    managerName:
-      person.managerName ||
-      manager?.name ||
-      null,
-  };
-});
+      return {
+        ...person,
 
-  // =========================
-  // CREATE
-  // =========================
+        managerName:
+          person.managerName ||
+          manager?.name ||
+          null,
+      };
+    });
+
+  /*
+   * =========================
+   * CREATE STAFF
+   * =========================
+   */
 
   const handleCreate = async (formData) => {
     try {
@@ -136,9 +181,24 @@ export default function StaffManagement({ token }) {
         formData
       );
 
+      const createdStaff = {
+        ...result.staff,
+        id: String(result.staff.id),
+
+        managerId: result.staff.managerId
+          ? String(result.staff.managerId)
+          : null,
+
+        managerName:
+          result.staff.managerName || null,
+
+        status:
+          result.staff.status || "Active",
+      };
+
       setStaff((prev) => [
         ...prev,
-        result.staff,
+        createdStaff,
       ]);
 
       setShowForm(false);
@@ -147,7 +207,7 @@ export default function StaffManagement({ token }) {
       showToast(
         "success",
         "Staff Created",
-        `${result.staff.name} was created successfully.`
+        `${createdStaff.name} was created successfully.`
       );
     } catch (createError) {
       showToast(
@@ -159,9 +219,11 @@ export default function StaffManagement({ token }) {
     }
   };
 
-  // =========================
-  // UPDATE
-  // =========================
+  /*
+   * =========================
+   * UPDATE STAFF
+   * =========================
+   */
 
   const handleUpdate = async (formData) => {
     if (!editingStaff) return;
@@ -173,14 +235,46 @@ export default function StaffManagement({ token }) {
         formData
       );
 
+      const updatedStaff = {
+        ...result.staff,
+
+        id: String(result.staff.id),
+
+        managerId: result.staff.managerId
+          ? String(result.staff.managerId)
+          : null,
+
+        managerName:
+          result.staff.managerName || null,
+
+        status:
+          result.staff.status || "Active",
+      };
+
       setStaff((prev) =>
         prev.map((person) =>
           String(person.id) ===
           String(editingStaff.id)
-            ? result.staff
+            ? updatedStaff
             : person
         )
       );
+
+      /*
+       * If the edited person is currently selected
+       * in the profile modal, update that too.
+       */
+      setSelectedStaff((prev) => {
+        if (
+          !prev ||
+          String(prev.id) !==
+            String(editingStaff.id)
+        ) {
+          return prev;
+        }
+
+        return updatedStaff;
+      });
 
       setEditingStaff(null);
       setShowForm(false);
@@ -188,7 +282,7 @@ export default function StaffManagement({ token }) {
       showToast(
         "success",
         "Staff Updated",
-        `${result.staff.name} was updated successfully.`
+        `${updatedStaff.name} was updated successfully.`
       );
     } catch (updateError) {
       showToast(
@@ -200,12 +294,114 @@ export default function StaffManagement({ token }) {
     }
   };
 
-  // =========================
-  // DELETE
-  // =========================
+  /*
+   * =========================
+   * TOGGLE STAFF STATUS
+   * =========================
+   *
+   * Active -> Inactive
+   * Inactive -> Active
+   */
+
+  const handleToggleStatus = async (person) => {
+    if (!person?.id) {
+      showToast(
+        "error",
+        "Status Update Failed",
+        "Staff ID is missing."
+      );
+
+      return;
+    }
+
+    const currentStatus =
+      person.status || "Active";
+
+    const nextStatus =
+      currentStatus === "Active"
+        ? "Inactive"
+        : "Active";
+
+    try {
+      const result =
+        await updateStaffStatus(
+          token,
+          person.id,
+          nextStatus
+        );
+
+      const updatedStaff = {
+        ...result.staff,
+
+        id: String(result.staff.id),
+
+        managerId: result.staff.managerId
+          ? String(result.staff.managerId)
+          : null,
+
+        managerName:
+          result.staff.managerName ||
+          person.managerName ||
+          null,
+
+        status:
+          result.staff.status ||
+          nextStatus,
+      };
+
+      /*
+       * Update staff table immediately.
+       */
+      setStaff((prev) =>
+        prev.map((staffMember) =>
+          String(staffMember.id) ===
+          String(person.id)
+            ? updatedStaff
+            : staffMember
+        )
+      );
+
+      /*
+       * Update profile if this staff member
+       * is currently open.
+       */
+      setSelectedStaff((prev) => {
+        if (
+          !prev ||
+          String(prev.id) !==
+            String(person.id)
+        ) {
+          return prev;
+        }
+
+        return updatedStaff;
+      });
+
+      showToast(
+        "success",
+        nextStatus === "Active"
+          ? "Staff Activated"
+          : "Staff Deactivated",
+        `${person.name} is now ${nextStatus.toLowerCase()}.`
+      );
+    } catch (statusError) {
+      showToast(
+        "error",
+        "Status Update Failed",
+        statusError.message ||
+          `Unable to ${nextStatus === "Active" ? "activate" : "deactivate"} staff.`
+      );
+    }
+  };
+
+  /*
+   * =========================
+   * DELETE STAFF
+   * =========================
+   */
 
   const handleDelete = async () => {
-    if (!deleteStaff) return;
+    if (!deleteStaff?.id) return;
 
     try {
       await removeStaff(
@@ -220,6 +416,22 @@ export default function StaffManagement({ token }) {
             String(deleteStaff.id)
         )
       );
+
+      /*
+       * Close profile if the deleted person
+       * was currently selected.
+       */
+      setSelectedStaff((prev) => {
+        if (
+          prev &&
+          String(prev.id) ===
+            String(deleteStaff.id)
+        ) {
+          return null;
+        }
+
+        return prev;
+      });
 
       showToast(
         "success",
@@ -238,37 +450,52 @@ export default function StaffManagement({ token }) {
     }
   };
 
-  // =========================
-  // EDIT
-  // =========================
+  /*
+   * =========================
+   * EDIT STAFF
+   * =========================
+   */
 
   const handleEdit = (person) => {
     setEditingStaff(person);
     setShowForm(true);
   };
 
-  // =========================
-  // STATS
-  // =========================
+  /*
+   * =========================
+   * STATISTICS
+   * =========================
+   */
 
   const totalStaff = staff.length;
 
   const admins = staff.filter(
-    (person) => person.role === "Admin"
+    (person) =>
+      person.role === "Admin"
   ).length;
 
   const managers = staff.filter(
-    (person) => person.role === "Manager"
+    (person) =>
+      person.role === "Manager"
   ).length;
 
   const employees = staff.filter(
-    (person) => person.role === "Employee"
+    (person) =>
+      person.role === "Employee"
   ).length;
+
+  /*
+   * =========================
+   * RENDER
+   * =========================
+   */
 
   return (
     <div className="space-y-6">
 
-      {/* HEADER */}
+      {/* =========================
+          HEADER
+      ========================= */}
 
       <div className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
 
@@ -287,6 +514,7 @@ export default function StaffManagement({ token }) {
         </div>
 
         <button
+          type="button"
           onClick={() => {
             setEditingStaff(null);
             setShowForm(true);
@@ -315,7 +543,9 @@ export default function StaffManagement({ token }) {
 
       </div>
 
-      {/* STATISTICS */}
+      {/* =========================
+          STATISTICS
+      ========================= */}
 
       <div className="grid grid-cols-2 gap-3 xl:grid-cols-4">
 
@@ -349,7 +579,9 @@ export default function StaffManagement({ token }) {
 
       </div>
 
-      {/* FILTER BAR */}
+      {/* =========================
+          FILTER BAR
+      ========================= */}
 
       <div className="rounded-2xl border border-slate-200 bg-white p-3">
 
@@ -471,6 +703,7 @@ export default function StaffManagement({ token }) {
           </select>
 
           <button
+            type="button"
             className="
               flex
               h-10
@@ -494,16 +727,23 @@ export default function StaffManagement({ token }) {
 
       </div>
 
-      {/* TABLE */}
+      {/* =========================
+          STAFF TABLE
+      ========================= */}
 
       <StaffTable
         staff={staffWithManagerNames}
         onView={setSelectedStaff}
         onEdit={handleEdit}
         onDelete={setDeleteStaff}
+        onToggleStatus={
+          handleToggleStatus
+        }
       />
 
-      {/* CREATE / EDIT */}
+      {/* =========================
+          CREATE / EDIT FORM
+      ========================= */}
 
       {showForm && (
         <StaffForm
@@ -518,7 +758,9 @@ export default function StaffManagement({ token }) {
         />
       )}
 
-      {/* PROFILE */}
+      {/* =========================
+          PROFILE
+      ========================= */}
 
       {selectedStaff && (
         <StaffProfile
@@ -533,7 +775,9 @@ export default function StaffManagement({ token }) {
         />
       )}
 
-      {/* DELETE */}
+      {/* =========================
+          DELETE MODAL
+      ========================= */}
 
       {deleteStaff && (
         <DeleteStaffModal
@@ -549,9 +793,11 @@ export default function StaffManagement({ token }) {
   );
 }
 
-// =========================
-// STAT CARD
-// =========================
+/*
+ * =========================
+ * STAT CARD
+ * =========================
+ */
 
 function StatCard({
   title,
@@ -606,6 +852,8 @@ function StatCard({
       <p className="mt-3 text-[10px] text-slate-400">
         {description}
       </p>
+
     </div>
   );
-} 
+}
+

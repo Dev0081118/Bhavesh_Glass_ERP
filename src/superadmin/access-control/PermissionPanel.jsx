@@ -137,7 +137,7 @@ export default function PermissionPanel({
           </div>
 
           {/* Permission count */}
-          <div className="flex items-center gap-3">
+          <div className="flex  items-center gap-3">
 
             <div className="rounded-xl bg-slate-50 px-4 py-2.5 text-center">
               <p className="text-lg font-semibold text-slate-900">
@@ -162,28 +162,8 @@ export default function PermissionPanel({
           </div>
         </div>
 
-        {/* Admin notice */}
-        {role === "admin" && (
-          <div className="mt-5 flex items-start gap-3 rounded-2xl border border-slate-200 bg-slate-50 p-3.5">
-
-            <ShieldCheck
-              size={17}
-              className="mt-0.5 shrink-0 text-slate-600"
-            />
-
-            <div>
-              <p className="text-xs font-semibold text-slate-700">
-                Company-wide Admin
-              </p>
-
-              <p className="mt-0.5 text-xs leading-5 text-slate-500">
-                Admins are company stakeholders and can be
-                granted access to modules across all departments.
-              </p>
-            </div>
-
-          </div>
-        )}
+       
+        
       </div>
 
       {/* Controls */}
@@ -232,7 +212,7 @@ export default function PermissionPanel({
       </div>
 
       {/* Modules */}
-      <div className="p-4 sm:p-6">
+      <div className="p-4 h-[500px] overflow-y-auto sm:p-6">
 
         <div className="space-y-2">
 
@@ -295,22 +275,7 @@ export default function PermissionPanel({
               );
             })}
           </div>
-        </div>
-
-        {/* Footer */}
-        <div className="mt-5 flex items-center gap-2 rounded-xl bg-slate-50 px-4 py-3">
-
-          <Check
-            size={15}
-            className="text-emerald-500"
-          />
-
-          <p className="text-xs text-slate-500">
-            Changes are currently stored locally in this
-            session. Backend persistence will be added later.
-          </p>
-
-        </div>
+        </div> 
       </div>
     </div>
   );

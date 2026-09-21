@@ -37,12 +37,12 @@ export default function StaffPermissionList({
   modules,
 }) {
   return (
-    <div className="flex min-h-[650px] flex-col overflow-hidden rounded-3xl border border-slate-200/80 bg-white shadow-[0_4px_24px_rgba(0,0,0,0.04)]">
+    <div className="flex h-[700px] overflow-y-auto flex-col overflow-hidden rounded-3xl border border-slate-200/80 bg-white shadow-[0_4px_24px_rgba(0,0,0,0.04)]">
 
       {/* Header */}
       <div className="border-b border-slate-100 px-5 py-4">
 
-        <div className="flex items-center justify-between">
+        <div className="flex  items-center justify-between">
 
           <div>
             <h2 className="text-sm font-semibold text-slate-900">

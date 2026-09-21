@@ -5,6 +5,8 @@ import {
   Pencil,
   Trash2,
   UserRound,
+  UserCheck,
+  UserX,
 } from "lucide-react";
 
 export default function StaffTable({
@@ -12,13 +14,15 @@ export default function StaffTable({
   onView,
   onEdit,
   onDelete,
+  onToggleStatus,
 }) {
   const [openMenu, setOpenMenu] =
     useState(null);
 
   const getInitials = (name) => {
-    return name
+    return String(name || "")
       .split(" ")
+      .filter(Boolean)
       .map((word) => word[0])
       .join("")
       .slice(0, 2)
@@ -26,23 +30,23 @@ export default function StaffTable({
   };
 
   return (
-    <div className="
-      overflow-hidden rounded-2xl
-      border border-slate-200 bg-white
-    ">
-
+    <div
+      className="
+        overflow-hidden rounded-2xl
+        border border-slate-200 bg-white
+      "
+    >
       {/* DESKTOP */}
 
       <div className="hidden overflow-x-auto md:block">
-
-        <table className="w-full min-w-[900px]">
-
+        <table className="w-full min-w-[1000px]">
           <thead>
-            <tr className="
-              border-b border-slate-100
-              bg-slate-50/70
-            ">
-
+            <tr
+              className="
+                border-b border-slate-100
+                bg-slate-50/70
+              "
+            >
               <th className={thClass}>
                 Staff
               </th>
@@ -64,17 +68,14 @@ export default function StaffTable({
               </th>
 
               <th className="w-[70px] px-5 py-3" />
-
             </tr>
           </thead>
 
           <tbody>
-
             {staff.length === 0 ? (
               <EmptyState />
             ) : (
               staff.map((person) => (
-
                 <tr
                   key={person.id}
                   className="
@@ -83,52 +84,55 @@ export default function StaffTable({
                     hover:bg-slate-50/70
                   "
                 >
-
                   {/* STAFF */}
 
                   <td className="px-5 py-4">
-
                     <div className="flex items-center gap-3">
-
-                      <div className="
-                        flex h-9 w-9 shrink-0
-                        items-center justify-center
-                        rounded-full bg-slate-100
-                        text-[11px] font-semibold
-                        text-slate-600
-                      ">
-                        {getInitials(person.name)}
+                      <div
+                        className="
+                          flex h-9 w-9 shrink-0
+                          items-center justify-center
+                          rounded-full bg-slate-100
+                          text-[11px] font-semibold
+                          text-slate-600
+                        "
+                      >
+                        {getInitials(
+                          person.name
+                        )}
                       </div>
 
                       <div className="min-w-0">
-
-                        <p className="
-                          truncate text-sm
-                          font-medium text-slate-900
-                        ">
+                        <p
+                          className="
+                            truncate text-sm
+                            font-medium text-slate-900
+                          "
+                        >
                           {person.name}
                         </p>
 
-                        <p className="
-                          truncate text-xs
-                          text-slate-400
-                        ">
+                        <p
+                          className="
+                            truncate text-xs
+                            text-slate-400
+                          "
+                        >
                           {person.email}
                         </p>
-
                       </div>
-
                     </div>
-
                   </td>
 
                   {/* ROLE */}
 
                   <td className="px-5 py-4">
-                    <span className="
-                      text-xs font-medium
-                      text-slate-700
-                    ">
+                    <span
+                      className="
+                        text-xs font-medium
+                        text-slate-700
+                      "
+                    >
                       {person.role}
                     </span>
                   </td>
@@ -136,63 +140,48 @@ export default function StaffTable({
                   {/* DEPARTMENT */}
 
                   <td className="px-5 py-4">
-                    <span className="
-                      text-xs text-slate-500
-                    ">
-                      {person.department || "—"}
+                    <span
+                      className="
+                        text-xs text-slate-500
+                      "
+                    >
+                      {person.department ||
+                        "—"}
                     </span>
                   </td>
 
                   {/* MANAGER */}
 
                   <td className="px-5 py-4">
-                    <span className="
-                      text-xs text-slate-500
-                    ">
-                      {person.managerName || "—"}
+                    <span
+                      className="
+                        text-xs text-slate-500
+                      "
+                    >
+                      {person.managerName ||
+                        "—"}
                     </span>
                   </td>
 
                   {/* STATUS */}
 
                   <td className="px-5 py-4">
-
-                    <div className="
-                      inline-flex items-center gap-1.5
-                    ">
-
-                      <span className={`
-                        h-1.5 w-1.5 rounded-full
-                        ${
-                          person.status === "Active"
-                            ? "bg-emerald-500"
-                            : "bg-slate-300"
-                        }
-                      `} />
-
-                      <span className={`
-                        text-xs font-medium
-                        ${
-                          person.status === "Active"
-                            ? "text-emerald-600"
-                            : "text-slate-400"
-                        }
-                      `}>
-                        {person.status}
-                      </span>
-
-                    </div>
-
+                    <StatusBadge
+                      status={
+                        person.status
+                      }
+                    />
                   </td>
 
                   {/* ACTIONS */}
 
                   <td className="relative px-5 py-4">
-
                     <button
+                      type="button"
                       onClick={() =>
                         setOpenMenu(
-                          openMenu === person.id
+                          openMenu ===
+                            person.id
                             ? null
                             : person.id
                         )
@@ -205,55 +194,60 @@ export default function StaffTable({
                         hover:text-slate-700
                       "
                     >
-                      <MoreHorizontal size={17} />
+                      <MoreHorizontal
+                        size={17}
+                      />
                     </button>
 
-                    {openMenu === person.id && (
+                    {openMenu ===
+                      person.id && (
                       <ActionMenu
                         person={person}
                         onView={onView}
                         onEdit={onEdit}
                         onDelete={onDelete}
+                        onToggleStatus={
+                          onToggleStatus
+                        }
                         closeMenu={() =>
-                          setOpenMenu(null)
+                          setOpenMenu(
+                            null
+                          )
                         }
                       />
                     )}
-
                   </td>
-
                 </tr>
-
               ))
             )}
-
           </tbody>
-
         </table>
-
       </div>
 
       {/* MOBILE */}
 
-      <div className="
-        divide-y divide-slate-100 md:hidden
-      ">
-
+      <div
+        className="
+          divide-y divide-slate-100
+          md:hidden
+        "
+      >
         {staff.length === 0 ? (
           <EmptyMobile />
         ) : (
           staff.map((person) => (
-
             <div
               key={person.id}
               className="p-4"
             >
-
-              <div className="
-                flex items-center justify-between
-              ">
-
+              <div
+                className="
+                  flex items-center
+                  justify-between
+                "
+              >
                 <button
+                  type="button"
                   onClick={() =>
                     onView(person)
                   }
@@ -262,41 +256,58 @@ export default function StaffTable({
                     gap-3 text-left
                   "
                 >
-
-                  <div className="
-                    flex h-10 w-10
-                    items-center justify-center
-                    rounded-full bg-slate-100
-                    text-xs font-semibold
-                    text-slate-600
-                  ">
-                    {getInitials(person.name)}
+                  <div
+                    className="
+                      flex h-10 w-10
+                      items-center justify-center
+                      rounded-full bg-slate-100
+                      text-xs font-semibold
+                      text-slate-600
+                    "
+                  >
+                    {getInitials(
+                      person.name
+                    )}
                   </div>
 
                   <div>
-                    <p className="
-                      text-sm font-medium
-                      text-slate-900
-                    ">
+                    <p
+                      className="
+                        text-sm font-medium
+                        text-slate-900
+                      "
+                    >
                       {person.name}
                     </p>
 
-                    <p className="
-                      text-xs text-slate-400
-                    ">
+                    <p
+                      className="
+                        text-xs text-slate-400
+                      "
+                    >
                       {person.role}
+
                       {person.department
                         ? ` • ${person.department}`
                         : ""}
                     </p>
-                  </div>
 
+                    <div className="mt-1">
+                      <StatusBadge
+                        status={
+                          person.status
+                        }
+                      />
+                    </div>
+                  </div>
                 </button>
 
                 <button
+                  type="button"
                   onClick={() =>
                     setOpenMenu(
-                      openMenu === person.id
+                      openMenu ===
+                        person.id
                         ? null
                         : person.id
                     )
@@ -308,22 +319,23 @@ export default function StaffTable({
                     text-slate-400
                   "
                 >
-                  <MoreHorizontal size={17} />
+                  <MoreHorizontal
+                    size={17}
+                  />
                 </button>
-
               </div>
 
-              {openMenu === person.id && (
-                <div className="
-                  mt-3 flex gap-2
-                ">
-
+              {openMenu ===
+                person.id && (
+                <div className="mt-3 grid grid-cols-2 gap-2">
                   <MobileAction
                     icon={Eye}
                     label="View"
                     onClick={() => {
                       onView(person);
-                      setOpenMenu(null);
+                      setOpenMenu(
+                        null
+                      );
                     }}
                   />
 
@@ -332,7 +344,36 @@ export default function StaffTable({
                     label="Edit"
                     onClick={() => {
                       onEdit(person);
-                      setOpenMenu(null);
+                      setOpenMenu(
+                        null
+                      );
+                    }}
+                  />
+
+                  <MobileAction
+                    icon={
+                      person.status ===
+                      "Active"
+                        ? UserX
+                        : UserCheck
+                    }
+                    label={
+                      person.status ===
+                      "Active"
+                        ? "Deactivate"
+                        : "Activate"
+                    }
+                    danger={
+                      person.status ===
+                      "Active"
+                    }
+                    onClick={() => {
+                      onToggleStatus(
+                        person
+                      );
+                      setOpenMenu(
+                        null
+                      );
                     }}
                   />
 
@@ -342,20 +383,17 @@ export default function StaffTable({
                     danger
                     onClick={() => {
                       onDelete(person);
-                      setOpenMenu(null);
+                      setOpenMenu(
+                        null
+                      );
                     }}
                   />
-
                 </div>
               )}
-
             </div>
-
           ))
         )}
-
       </div>
-
     </div>
   );
 }
@@ -367,21 +405,63 @@ const thClass = `
   text-slate-400
 `;
 
+function StatusBadge({
+  status,
+}) {
+  const active =
+    status === "Active";
+
+  return (
+    <div className="inline-flex items-center gap-1.5">
+      <span
+        className={`
+          h-1.5 w-1.5 rounded-full
+          ${
+            active
+              ? "bg-emerald-500"
+              : "bg-red-400"
+          }
+        `}
+      />
+
+      <span
+        className={`
+          text-xs font-medium
+          ${
+            active
+              ? "text-emerald-600"
+              : "text-red-500"
+          }
+        `}
+      >
+        {active
+          ? "Active"
+          : "Inactive"}
+      </span>
+    </div>
+  );
+}
+
 function ActionMenu({
   person,
   onView,
   onEdit,
   onDelete,
+  onToggleStatus,
   closeMenu,
 }) {
-  return (
-    <div className="
-      absolute right-5 top-12 z-20
-      w-40 rounded-xl
-      border border-slate-200
-      bg-white p-1 shadow-lg
-    ">
+  const active =
+    person.status === "Active";
 
+  return (
+    <div
+      className="
+        absolute right-5 top-12 z-20
+        w-44 rounded-xl
+        border border-slate-200
+        bg-white p-1 shadow-lg
+      "
+    >
       <MenuButton
         icon={Eye}
         label="View Profile"
@@ -400,9 +480,25 @@ function ActionMenu({
         }}
       />
 
-      <div className="
-        my-1 border-t border-slate-100
-      " />
+      <MenuButton
+        icon={
+          active
+            ? UserX
+            : UserCheck
+        }
+        label={
+          active
+            ? "Deactivate Staff"
+            : "Activate Staff"
+        }
+        danger={active}
+        onClick={() => {
+          onToggleStatus(person);
+          closeMenu();
+        }}
+      />
+
+      <div className="my-1 border-t border-slate-100" />
 
       <MenuButton
         icon={Trash2}
@@ -413,7 +509,6 @@ function ActionMenu({
           closeMenu();
         }}
       />
-
     </div>
   );
 }
@@ -426,6 +521,7 @@ function MenuButton({
 }) {
   return (
     <button
+      type="button"
       onClick={onClick}
       className={`
         flex w-full items-center
@@ -452,9 +548,10 @@ function MobileAction({
 }) {
   return (
     <button
+      type="button"
       onClick={onClick}
       className={`
-        flex flex-1 items-center
+        flex items-center
         justify-center gap-2
         rounded-lg py-2 text-xs
         ${
@@ -475,24 +572,32 @@ function EmptyState() {
     <tr>
       <td
         colSpan="6"
-        className="px-5 py-16 text-center"
+        className="
+          px-5 py-16
+          text-center
+        "
       >
         <UserRound
           size={30}
           className="mx-auto text-slate-300"
         />
 
-        <p className="
-          mt-3 text-sm font-medium
-          text-slate-600
-        ">
+        <p
+          className="
+            mt-3 text-sm font-medium
+            text-slate-600
+          "
+        >
           No staff found
         </p>
 
-        <p className="
-          mt-1 text-xs text-slate-400
-        ">
-          Try changing your search or filters.
+        <p
+          className="
+            mt-1 text-xs text-slate-400
+          "
+        >
+          Try changing your search or
+          filters.
         </p>
       </td>
     </tr>
@@ -507,11 +612,18 @@ function EmptyMobile() {
         className="mx-auto text-slate-300"
       />
 
-      <p className="
-        mt-3 text-sm font-medium
-        text-slate-600
-      ">
+      <p
+        className="
+          mt-3 text-sm font-medium
+          text-slate-600
+        "
+      >
         No staff found
+      </p>
+
+      <p className="mt-1 text-xs text-slate-400">
+        Try changing your search or
+        filters.
       </p>
     </div>
   );

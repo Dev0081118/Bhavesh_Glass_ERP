@@ -43,6 +43,8 @@ export const updateAccessUser = (token, userId, access) =>
 export const listStaff = (token) => request("/staff", { token });
 export const getOverview = (token) => request("/overview", { token });
 export const getAnalytics = (token) => request("/analytics", { token });
+export const getDashboardSummary = (token, range = "30d") =>
+  request(`/dashboard/summary?range=${encodeURIComponent(range)}`, { token });
 export const getSystemStatus = () => request("/system/status");
 
 export const updateKillSwitch = (token, isSystemActive, reason) =>

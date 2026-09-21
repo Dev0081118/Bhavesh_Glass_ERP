@@ -13,15 +13,6 @@ export const moduleDefinitions = [
   { id: "reports", label: "Reports" },
 ];
 
-export const managementDefinitions = [
-  { id: "staff", label: "Staff" },
-  { id: "hierarchy", label: "Hierarchy" },
-  { id: "access", label: "Access" },
-  { id: "modules", label: "Modules" },
-  { id: "kill-switch", label: "Kill Switch" },
-  { id: "system-settings", label: "System Settings" },
-];
-
 export const defaultAccessForRole = (role = "Employee") => {
   const isSuperAdmin = role === "Super Admin";
 

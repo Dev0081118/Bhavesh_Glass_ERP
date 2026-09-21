@@ -33,11 +33,7 @@ const navigation = [
     label: "Staff",
     icon: Users,
   },
-  {
-    id: "hierarchy",
-    label: "Hierarchy",
-    icon: GitBranch,
-  },
+  
   {
     id: "access",
     label: "Access",

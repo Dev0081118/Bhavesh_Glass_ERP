@@ -1,6 +1,5 @@
 import { useEffect, useState } from "react";
 import StaffManagement from "./staff/StaffManagement";
-import Hierarchy from "./hierarchy/Hierarchy";
 import AccessControl from "./access-control/AccessControl";
 import KillSwitch from "./kill-switch/KillSwitch";
 import Inventory from "../Modules/inventory/Inventory";
@@ -232,60 +231,7 @@ function Dashboard({ user, token }) {
             ))}
           </div>
         </div>
-      </div>
-
-      {/* Organization preview */}
-      <div className="rounded-2xl border border-slate-200 bg-white p-5">
-        <div className="flex items-center justify-between">
-          <div>
-            <h2 className="text-sm font-semibold text-slate-900">
-              Organization
-            </h2>
-
-            <p className="mt-1 text-xs text-slate-400">
-              Your organization's structure
-            </p>
-          </div>
-
-          <button className="text-xs font-medium text-slate-600 hover:text-slate-900">
-            View hierarchy →
-          </button>
-        </div>
-
-        <div className="mt-6 flex justify-center overflow-x-auto py-5">
-          <div className="flex min-w-[600px] flex-col items-center">
-            {/* Super Admin */}
-            <div className="rounded-xl border border-slate-300 bg-slate-900 px-6 py-3 text-center text-white shadow-sm">
-              <p className="text-xs font-semibold">
-                Super Admin
-              </p>
-              <p className="mt-0.5 text-[10px] text-slate-300">
-                System Owner
-              </p>
-            </div>
-
-            <div className="h-8 w-px bg-slate-300" />
-
-            {/* Admins */}
-            <div className="relative flex gap-16">
-              <div className="absolute left-1/2 top-0 h-px w-[calc(100%-80px)] -translate-x-1/2 bg-slate-300" />
-
-              {["Arjun Mehta", "Rahul Shah"].map((name) => (
-                <div key={name} className="pt-8">
-                  <div className="rounded-xl border border-slate-200 bg-white px-5 py-3 text-center shadow-sm">
-                    <p className="text-xs font-semibold text-slate-800">
-                      {name}
-                    </p>
-                    <p className="mt-0.5 text-[10px] text-slate-400">
-                      Admin
-                    </p>
-                  </div>
-                </div>
-              ))}
-            </div>
-          </div>
-        </div>
-      </div>
+      </div>      
     </div>
   );
 }
@@ -326,8 +272,6 @@ export default function SuperAdminPanel({ onLogout, user, token }) {
     case "staff":
       return isSuperAdmin ? <StaffManagement token={token} /> : <AccessDenied />;
 
-    case "hierarchy":
-      return isSuperAdmin ? <Hierarchy token={token} /> : <AccessDenied />;
 
     case "access":
       return isSuperAdmin ? <AccessControl token={token} /> : <AccessDenied />;

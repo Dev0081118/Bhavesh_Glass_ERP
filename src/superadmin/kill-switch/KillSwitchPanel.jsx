@@ -1,8 +1,7 @@
 import {
-  AlertTriangle,
-  LockKeyhole,
   Power,
   ShieldCheck,
+  Info,
 } from "lucide-react";
 
 const KillSwitchPanel = ({
@@ -11,85 +10,63 @@ const KillSwitchPanel = ({
   onEnable,
 }) => {
   return (
-    <div className="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm sm:p-8">
-      <div className="flex flex-col gap-6">
-        <div className="flex items-start gap-4">
-          <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-slate-100">
-            <LockKeyhole className="h-5 w-5 text-slate-600" />
-          </div>
+    <div className="rounded-3xl border border-slate-200 bg-white p-5 sm:p-6">
 
-          <div>
-            <h2 className="text-lg font-semibold text-slate-900">
-              Global System Control
-            </h2>
+      <div className="flex flex-col gap-6 lg:flex-row lg:items-center lg:justify-between">
 
-            <p className="mt-1 max-w-2xl text-sm leading-6 text-slate-500">
-              This control affects the entire ERP application. Use it only
-              when you need to temporarily prevent every user from accessing
-              the system.
-            </p>
-          </div>
-        </div>
+        <div className="max-w-2xl">
 
-        <div
-          className={`rounded-2xl border p-5 ${
-            isSystemActive
-              ? "border-amber-100 bg-amber-50/60"
-              : "border-red-100 bg-red-50/60"
-          }`}
-        >
-          <div className="flex items-start gap-3">
-            <AlertTriangle
-              className={`mt-0.5 h-5 w-5 shrink-0 ${
-                isSystemActive ? "text-amber-600" : "text-red-600"
-              }`}
+          <h2 className="text-sm font-semibold text-slate-900">
+            Global ERP Access
+          </h2>
+
+          <p className="mt-1 text-sm leading-6 text-slate-500">
+            {isSystemActive
+              ? "Pause ERP access when maintenance or an emergency requires staff to temporarily stop using the system."
+              : "ERP access is paused. Enable the system when staff can safely resume work."}
+          </p>
+
+          <div className="mt-3 flex items-start gap-2">
+
+            <Info
+              size={14}
+              className="mt-0.5 shrink-0 text-slate-400"
             />
 
-            <div>
-              <p
-                className={`text-sm font-semibold ${
-                  isSystemActive ? "text-amber-800" : "text-red-800"
-                }`}
-              >
-                {isSystemActive
-                  ? "Emergency shutdown control"
-                  : "System access is currently blocked"}
-              </p>
+            <p className="text-xs leading-5 text-slate-400">
+              This does not deactivate staff accounts or change module permissions.
+            </p>
 
-              <p
-                className={`mt-1 text-sm leading-6 ${
-                  isSystemActive ? "text-amber-700" : "text-red-700"
-                }`}
-              >
-                {isSystemActive
-                  ? "Disabling the system will immediately prevent all users from accessing the ERP application."
-                  : "Users will remain blocked until the Super Admin enables the system again."}
-              </p>
-            </div>
           </div>
+
         </div>
 
-        <div className="flex flex-col gap-3 sm:flex-row sm:justify-end">
+        <div className="shrink-0">
+
           {isSystemActive ? (
             <button
               type="button"
               onClick={onDisable}
-              className="inline-flex items-center justify-center gap-2 rounded-xl bg-red-600 px-5 py-3 text-sm font-semibold text-white shadow-sm transition hover:bg-red-700 focus:outline-none focus:ring-2 focus:ring-red-500 focus:ring-offset-2"
+              className="inline-flex w-full items-center justify-center gap-2 rounded-xl border border-red-200 bg-white px-5 py-2.5 text-sm font-semibold text-red-600 transition hover:bg-red-50 sm:w-auto"
             >
-              <Power className="h-4 w-4" />
-              Disable Entire System
+              <Power size={16} />
+
+              Pause ERP Access
             </button>
           ) : (
             <button
               type="button"
               onClick={onEnable}
-              className="inline-flex items-center justify-center gap-2 rounded-xl bg-emerald-600 px-5 py-3 text-sm font-semibold text-white shadow-sm transition hover:bg-emerald-700 focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:ring-offset-2"
+              className="inline-flex w-full items-center justify-center gap-2 rounded-xl bg-slate-900 px-5 py-2.5 text-sm font-semibold text-white transition hover:bg-slate-800 sm:w-auto"
             >
-              <ShieldCheck className="h-4 w-4" />
-              Enable System
+              <ShieldCheck size={16} />
+
+              Restore ERP Access
             </button>
           )}
+
         </div>
+
       </div>
     </div>
   );

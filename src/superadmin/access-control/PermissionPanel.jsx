@@ -1,12 +1,14 @@
 import {
   ShieldCheck,
-  User,
   Mail,
   Building2,
-  Check,
   RotateCcw,
   CheckCheck,
   XCircle,
+  UserRound,
+  LockKeyhole,
+  Check,
+  Info,
 } from "lucide-react";
 
 import ModulePermissionRow from "./ModulePermissionRow";
@@ -19,6 +21,45 @@ function getInitials(name = "") {
     .map((part) => part[0])
     .join("")
     .toUpperCase();
+}
+
+function Toggle({
+  enabled,
+  onChange,
+  label,
+}) {
+  return (
+    <button
+      type="button"
+      role="switch"
+      aria-label={label}
+      aria-checked={enabled}
+      onClick={() =>
+        onChange(!enabled)
+      }
+      className={`relative h-7 w-12 shrink-0 rounded-full p-1 transition ${
+        enabled
+          ? "bg-slate-900"
+          : "bg-slate-200"
+      }`}
+    >
+      <span
+        className={`flex h-5 w-5 items-center justify-center rounded-full bg-white shadow-sm transition-transform ${
+          enabled
+            ? "translate-x-5"
+            : "translate-x-0"
+        }`}
+      >
+        {enabled && (
+          <Check
+            size={11}
+            strokeWidth={3}
+            className="text-slate-900"
+          />
+        )}
+      </span>
+    </button>
+  );
 }
 
 export default function PermissionPanel({
@@ -34,13 +75,13 @@ export default function PermissionPanel({
 }) {
   if (!staff) {
     return (
-      <div className="flex min-h-[650px] items-center justify-center rounded-3xl border border-slate-200/80 bg-white shadow-[0_4px_24px_rgba(0,0,0,0.04)]">
+      <div className="flex min-h-[650px] items-center justify-center rounded-3xl border border-slate-200 bg-white">
 
         <div className="max-w-sm px-6 text-center">
 
           <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-2xl bg-slate-100">
             <ShieldCheck
-              size={25}
+              size={24}
               className="text-slate-500"
             />
           </div>
@@ -50,8 +91,7 @@ export default function PermissionPanel({
           </h2>
 
           <p className="mt-1 text-sm leading-6 text-slate-400">
-            Choose someone from the staff list to view and
-            manage their module permissions.
+            Choose someone from the staff list to manage their ERP access.
           </p>
 
         </div>
@@ -59,20 +99,37 @@ export default function PermissionPanel({
     );
   }
 
-  const enabledCount = modules.filter((moduleName) => {
-    const key = String(moduleName)
-      .toLowerCase()
-      .replace(/\s+/g, "_");
+  const enabledCount =
+    modules.filter(
+      (moduleName) => {
+        const key =
+          String(moduleName)
+            .toLowerCase()
+            .replace(/\s+/g, "_");
 
-    return permissions[key];
-  }).length;
+        return permissions[key];
+      }
+    ).length;
 
-  const role = String(staff.role || "").toLowerCase();
+  const accessPercentage =
+    modules.length
+      ? Math.round(
+          (enabledCount /
+            modules.length) *
+            100
+        )
+      : 0;
+
+  const passwordAccess =
+    Boolean(
+      profilePermissions?.resetPassword
+    );
 
   return (
-    <div className="overflow-hidden rounded-3xl border border-slate-200/80 bg-white shadow-[0_4px_24px_rgba(0,0,0,0.04)]">
+    <div className="overflow-hidden rounded-3xl border border-slate-200 bg-white">
 
-      {/* Staff header */}
+      {/* USER HEADER */}
+
       <div className="border-b border-slate-100 p-5 sm:p-6">
 
         <div className="flex flex-col justify-between gap-5 lg:flex-row lg:items-center">
@@ -136,46 +193,55 @@ export default function PermissionPanel({
             </div>
           </div>
 
-          {/* Permission count */}
-          <div className="flex  items-center gap-3">
+          {/* ACCESS OVERVIEW */}
 
-            <div className="rounded-xl bg-slate-50 px-4 py-2.5 text-center">
-              <p className="text-lg font-semibold text-slate-900">
-                {enabledCount}
-              </p>
+          <div className="min-w-[190px] rounded-2xl border border-slate-100 bg-slate-50 p-4">
 
-              <p className="text-[10px] font-medium uppercase tracking-wide text-slate-400">
-                Enabled
-              </p>
+            <div className="flex items-end justify-between">
+              <div>
+                <p className="text-xs text-slate-400">
+                  Module access
+                </p>
+
+                <p className="mt-1 text-lg font-semibold text-slate-900">
+                  {enabledCount}
+                  <span className="text-sm font-normal text-slate-400">
+                    {" "}
+                    / {modules.length}
+                  </span>
+                </p>
+              </div>
+
+              <span className="text-xs font-medium text-slate-500">
+                {accessPercentage}%
+              </span>
             </div>
 
-            <div className="rounded-xl bg-slate-50 px-4 py-2.5 text-center">
-              <p className="text-lg font-semibold text-slate-900">
-                {modules.length - enabledCount}
-              </p>
-
-              <p className="text-[10px] font-medium uppercase tracking-wide text-slate-400">
-                Disabled
-              </p>
+            <div className="mt-3 h-1.5 overflow-hidden rounded-full bg-slate-200">
+              <div
+                className="h-full rounded-full bg-slate-900 transition-all"
+                style={{
+                  width: `${accessPercentage}%`,
+                }}
+              />
             </div>
 
           </div>
-        </div>
 
-       
-        
+        </div>
       </div>
 
-      {/* Controls */}
+      {/* MODULE HEADER */}
+
       <div className="flex flex-col justify-between gap-3 border-b border-slate-100 px-5 py-4 sm:flex-row sm:items-center sm:px-6">
 
         <div>
           <h3 className="text-sm font-semibold text-slate-900">
-            Module Permissions
+            Module Access
           </h3>
 
           <p className="mt-0.5 text-xs text-slate-400">
-            Enable or disable individual modules.
+            Choose which areas of the ERP this user can access.
           </p>
         </div>
 
@@ -211,71 +277,170 @@ export default function PermissionPanel({
         </div>
       </div>
 
-      {/* Modules */}
-      <div className="p-4 h-[500px] overflow-y-auto sm:p-6">
+      {/* SCROLL AREA */}
+
+      <div className="h-[500px] overflow-y-auto p-4 sm:p-6">
+
+        {/* MODULES */}
 
         <div className="space-y-2">
 
-          {modules.map((moduleName) => {
-            const key = String(moduleName)
-              .toLowerCase()
-              .replace(/\s+/g, "_");
+          {modules.map(
+            (moduleName) => {
+              const key =
+                String(moduleName)
+                  .toLowerCase()
+                  .replace(
+                    /\s+/g,
+                    "_"
+                  );
 
-            return (
-              <ModulePermissionRow
-                key={moduleName}
-                moduleName={moduleName}
-                enabled={Boolean(permissions[key])}
+              return (
+                <ModulePermissionRow
+                  key={moduleName}
+                  moduleName={
+                    moduleName
+                  }
+                  enabled={Boolean(
+                    permissions[key]
+                  )}
+                  onChange={(
+                    value
+                  ) =>
+                    onPermissionChange(
+                      moduleName,
+                      value
+                    )
+                  }
+                />
+              );
+            }
+          )}
+
+        </div>
+
+        {/* ACCOUNT CAPABILITIES */}
+
+        <div className="mt-6 border-t border-slate-100 pt-6">
+
+          <div>
+            <h3 className="text-sm font-semibold text-slate-900">
+              Account Capabilities
+            </h3>
+
+            <p className="mt-1 text-xs leading-5 text-slate-400">
+              Controls actions the user can perform on their own account.
+            </p>
+          </div>
+
+          <div className="mt-4 overflow-hidden rounded-2xl border border-slate-200">
+
+            {/* BASIC PROFILE */}
+
+            <div className="flex items-center justify-between gap-4 border-b border-slate-100 p-4">
+
+              <div className="flex min-w-0 items-start gap-3">
+
+                <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-slate-100">
+                  <UserRound
+                    size={17}
+                    className="text-slate-600"
+                  />
+                </div>
+
+                <div>
+                  <p className="text-sm font-semibold text-slate-800">
+                    Basic profile
+                  </p>
+
+                  <p className="mt-0.5 text-[11px] leading-5 text-slate-400">
+                    View name, contact details and account information.
+                  </p>
+                </div>
+
+              </div>
+
+              <div className="flex shrink-0 items-center gap-2 rounded-full bg-slate-100 px-3 py-1.5">
+
+                <Check
+                  size={12}
+                  strokeWidth={3}
+                  className="text-slate-600"
+                />
+
+                <span className="text-[10px] font-semibold uppercase tracking-wide text-slate-500">
+                  Always Available
+                </span>
+
+              </div>
+
+            </div>
+
+            {/* PASSWORD */}
+
+            <div className="flex items-center justify-between gap-4 p-4">
+
+              <div className="flex min-w-0 items-start gap-3">
+
+                <div
+                  className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-xl ${
+                    passwordAccess
+                      ? "bg-slate-100"
+                      : "bg-slate-50"
+                  }`}
+                >
+                  <LockKeyhole
+                    size={17}
+                    className={
+                      passwordAccess
+                        ? "text-slate-600"
+                        : "text-slate-400"
+                    }
+                  />
+                </div>
+
+                <div>
+                  <p className="text-sm font-semibold text-slate-800">
+                    Password changes
+                  </p>
+
+                  <p className="mt-0.5 text-[11px] leading-5 text-slate-400">
+                    Allow this user to change their account password from the profile menu.
+                  </p>
+                </div>
+
+              </div>
+
+              <Toggle
+                enabled={
+                  passwordAccess
+                }
+                label="Password changes"
                 onChange={(value) =>
-                  onPermissionChange(
-                    moduleName,
+                  onProfilePermissionChange(
+                    "resetPassword",
                     value
                   )
                 }
               />
-            );
-          })}
 
-        </div>
+            </div>
 
-        <div className="mt-5 rounded-2xl border border-slate-100 bg-slate-50/70 p-4">
-          <div>
-            <h3 className="text-sm font-semibold text-slate-900">
-              Profile Permissions
-            </h3>
-            <p className="mt-0.5 text-xs text-slate-400">
-              Control profile visibility and account actions.
+          </div>
+
+          <div className="mt-3 flex items-start gap-2 text-[11px] leading-5 text-slate-400">
+            <Info
+              size={13}
+              className="mt-0.5 shrink-0"
+            />
+
+            <p>
+              Basic profile access is always available so users can verify their own account information and access account controls.
             </p>
           </div>
 
-          <div className="mt-3 grid gap-2 sm:grid-cols-3">
-            {[
-              ["view", "View profile"],
-              ["edit", "Edit profile"],
-              ["resetPassword", "Reset password"],
-            ].map(([permission, label]) => {
-              const enabled = Boolean(profilePermissions?.[permission]);
+        </div>
 
-              return (
-                <button
-                  key={permission}
-                  type="button"
-                  role="switch"
-                  aria-checked={enabled}
-                  onClick={() => onProfilePermissionChange(permission, !enabled)}
-                  className={`flex items-center justify-between rounded-xl border px-3 py-2 text-left text-xs font-medium transition ${
-                    enabled
-                      ? "border-slate-300 bg-white text-slate-800"
-                      : "border-slate-100 bg-slate-100 text-slate-400"
-                  }`}
-                >
-                  {label}
-                  <span className={`h-2 w-2 rounded-full ${enabled ? "bg-emerald-500" : "bg-slate-300"}`} />
-                </button>
-              );
-            })}
-          </div>
-        </div> 
       </div>
     </div>
   );

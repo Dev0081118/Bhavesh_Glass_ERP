@@ -1,8 +1,8 @@
 import {
   Users,
+  UserCheck,
   ShieldCheck,
-  CheckCircle2,
-  XCircle,
+  ShieldMinus,
 } from "lucide-react";
 
 function SummaryCard({
@@ -12,20 +12,19 @@ function SummaryCard({
   description,
 }) {
   return (
-    <div className="rounded-2xl border border-slate-200/80 bg-white p-4 shadow-[0_2px_12px_rgba(0,0,0,0.03)] sm:p-5">
-
-      <div className="flex items-start justify-between gap-3">
+    <div className="rounded-2xl border border-slate-200 bg-white px-5 py-4">
+      <div className="flex items-center justify-between gap-4">
 
         <div>
-          <p className="text-xs font-medium text-slate-500">
+          <p className="text-xs font-medium text-slate-400">
             {label}
           </p>
 
-          <p className="mt-1 text-xl font-semibold tracking-tight text-slate-900 sm:text-2xl">
+          <p className="mt-1 text-2xl font-semibold tracking-tight text-slate-900">
             {value}
           </p>
 
-          <p className="mt-1 text-[10px] text-slate-400">
+          <p className="mt-1 text-[11px] text-slate-400">
             {description}
           </p>
         </div>
@@ -33,7 +32,7 @@ function SummaryCard({
         <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-slate-100">
           <Icon
             size={18}
-            className="text-slate-700"
+            className="text-slate-600"
           />
         </div>
 
@@ -44,40 +43,39 @@ function SummaryCard({
 
 export default function PermissionSummary({
   totalStaff,
-  filteredStaff,
-  enabledCount,
-  disabledCount,
-  totalModules,
+  activeStaff,
+  fullAccess,
+  restrictedAccess,
 }) {
   return (
-    <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
+    <div className="grid grid-cols-2 gap-3 xl:grid-cols-4">
 
       <SummaryCard
         icon={Users}
-        label="Total Staff"
+        label="Managed Users"
         value={totalStaff}
-        description={`${filteredStaff} currently shown`}
+        description="Accounts under access control"
+      />
+
+      <SummaryCard
+        icon={UserCheck}
+        label="Active Accounts"
+        value={activeStaff}
+        description="Can currently sign in"
       />
 
       <SummaryCard
         icon={ShieldCheck}
-        label="Modules"
-        value={totalModules}
-        description="Available system modules"
+        label="Full Access"
+        value={fullAccess}
+        description="All ERP modules enabled"
       />
 
       <SummaryCard
-        icon={CheckCircle2}
-        label="Enabled"
-        value={enabledCount}
-        description="For selected staff"
-      />
-
-      <SummaryCard
-        icon={XCircle}
-        label="Disabled"
-        value={disabledCount}
-        description="For selected staff"
+        icon={ShieldMinus}
+        label="Restricted Access"
+        value={restrictedAccess}
+        description="One or more modules restricted"
       />
 
     </div>

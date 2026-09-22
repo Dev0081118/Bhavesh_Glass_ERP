@@ -1,9 +1,9 @@
 import {
   Eye,
-  MoreHorizontal,
   Pencil,
   Trash2,
 } from "lucide-react";
+
 import ProductStatus from "./ProductStatus";
 
 export default function ProductRow({
@@ -13,110 +13,128 @@ export default function ProductRow({
   onDelete,
   onToggleStatus,
 }) {
+  const frameSize =
+    product.isFrame &&
+    product.frameSize?.width &&
+    product.frameSize?.height
+      ? `${product.frameSize.width} × ${product.frameSize.height} ${product.frameSize.unit}`
+      : "—";
+
+  const conversion =
+    product.conversionEnabled &&
+    product.conversions?.[0]
+      ? `1 ${product.unit} = ${product.conversions[0].factor} ${product.conversions[0].unit}`
+      : "—";
+
+  const responsible =
+    product.assignedTo?.name ||
+    "Not assigned";
+
   return (
     <tr className="border-b border-slate-100 last:border-0 hover:bg-slate-50/50">
+      <td className="px-4 py-4">
+        <p className="text-sm font-semibold text-slate-900">
+          {
+            product.name
+          }
+        </p>
 
-      <td className="px-5 py-4">
-        <div className="flex items-center gap-3">
-          <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-slate-100 text-slate-500">
-            <span className="text-xs font-semibold">
-              {product.name
-                .split(" ")
-                .slice(0, 2)
-                .map((word) => word[0])
-                .join("")
-                .toUpperCase()}
-            </span>
-          </div>
+        <p className="mt-1 font-mono text-xs text-slate-400">
+          {
+            product.sku
+          }
+        </p>
+      </td>
 
-          <div className="min-w-0">
-            <p className="truncate text-sm font-medium text-slate-900">
-              {product.name}
-            </p>
+      <td className="px-4 py-4 text-sm text-slate-600">
+        {
+          product.category
+        }
+      </td>
 
-            <p className="mt-0.5 text-xs text-slate-400">
-              {product.sku} · {product.id}
-            </p>
-          </div>
-        </div>
+      <td className="px-4 py-4 text-sm text-slate-600">
+        {product.type}
+      </td>
+
+      <td className="px-4 py-4 text-sm text-slate-600">
+        {frameSize}
+      </td>
+
+      <td className="px-4 py-4 text-sm font-medium text-slate-700">
+        {product.unit}
+      </td>
+
+      <td className="px-4 py-4 text-xs text-slate-500">
+        {conversion}
+      </td>
+
+      <td className="px-4 py-4 text-sm text-slate-700">
+        {product.minimumStockLevel ??
+          0}{" "}
+        {product.unit}
       </td>
 
       <td className="px-4 py-4">
         <p className="text-sm text-slate-700">
-          {product.category}
+          {responsible}
         </p>
 
-        <p className="mt-0.5 text-xs text-slate-400">
-          {product.subCategory}
-        </p>
-      </td>
-
-      <td className="px-4 py-4">
-        <span className="text-sm text-slate-600">
-          {product.type}
-        </span>
-      </td>
-
-      <td className="px-4 py-4">
-        <span className="rounded-lg bg-slate-100 px-2.5 py-1 text-xs font-medium text-slate-600">
-          {product.size}
-        </span>
-      </td>
-
-      <td className="px-4 py-4 text-right">
-        <span className="text-sm font-medium text-slate-900">
-          ₹{product.sellingPrice.toLocaleString("en-IN")}
-        </span>
-      </td>
-
-      <td className="px-4 py-4 text-right">
-        <span className="text-sm font-medium text-slate-700">
-          {product.stock.toLocaleString("en-IN")}
-        </span>
-
-        <p className="mt-0.5 text-xs text-slate-400">
-          {product.unit}
-        </p>
+        {product.assignedTo?.role && (
+          <p className="text-xs text-slate-400">
+            {
+              product.assignedTo
+                .role
+            }
+          </p>
+        )}
       </td>
 
       <td className="px-4 py-4">
         <ProductStatus
-          status={product.status}
-          onClick={() => onToggleStatus(product)}
+          status={
+            product.status
+          }
+          onClick={() =>
+            onToggleStatus(
+              product
+            )
+          }
         />
       </td>
 
-      <td className="px-5 py-4">
-        <div className="flex items-center justify-end gap-1">
+      <td className="px-4 py-4">
+        <div className="flex gap-1">
           <button
-            onClick={() => onView(product)}
-            title="View"
+            onClick={() =>
+              onView(
+                product
+              )
+            }
             className="rounded-lg p-2 text-slate-400 hover:bg-slate-100 hover:text-slate-900"
           >
-            <Eye size={16} />
+            <Eye className="h-4 w-4" />
           </button>
 
           <button
-            onClick={() => onEdit(product)}
-            title="Edit"
+            onClick={() =>
+              onEdit(
+                product
+              )
+            }
             className="rounded-lg p-2 text-slate-400 hover:bg-slate-100 hover:text-slate-900"
           >
-            <Pencil size={16} />
+            <Pencil className="h-4 w-4" />
           </button>
 
           <button
-            onClick={() => onDelete(product)}
-            title="Delete"
+            onClick={() =>
+              onDelete(
+                product
+              )
+            }
             className="rounded-lg p-2 text-slate-400 hover:bg-red-50 hover:text-red-600"
           >
-            <Trash2 size={16} />
-          </button>
-
-          <button
-            title="More"
-            className="rounded-lg p-2 text-slate-400 hover:bg-slate-100 hover:text-slate-900"
-          >
-            <MoreHorizontal size={16} />
+            <Trash2 className="h-4 w-4" />
           </button>
         </div>
       </td>

@@ -1,4 +1,9 @@
-import { useEffect, useMemo, useState } from "react";
+import {
+  useEffect,
+  useMemo,
+  useState,
+} from "react";
+
 import ProductHeader from "./ProductHeader";
 import ProductSummary from "./ProductSummary";
 import ProductFilters from "./ProductFilters";
@@ -6,378 +11,480 @@ import ProductTable from "./ProductTable";
 import ProductForm from "./ProductForm";
 import ProductDetails from "./ProductDetails";
 import DeleteProductModal from "./DeleteProductModal";
+
 import {
   createResource,
   deleteResource,
   listResource,
   updateResource,
+  listStaff,
 } from "../../lib/api";
 
-const initialProducts = [
-  {
-    id: "PROD-001",
-    name: "Classic Black Photo Frame",
-    sku: "BG-FRM-001",
-    category: "Photo Frame",
-    subCategory: "Classic",
-    type: "Finished Product",
-    size: "1 Inch",
-    material: "MDF",
-    unit: "Piece",
-    purchasePrice: 180,
-    sellingPrice: 299,
-    wholesalePrice: 250,
-    gst: 18,
-    hsnCode: "4414",
-    stock: 72,
-    reorderLevel: 20,
-    location: "Main Warehouse",
-    description: "Classic black photo frame for standard photo display.",
-    status: "Active",
-    image: null,
-  },
-  {
-    id: "PROD-002",
-    name: "Premium Wooden Frame",
-    sku: "BG-FRM-002",
-    category: "Photo Frame",
-    subCategory: "Premium",
-    type: "Finished Product",
-    size: "2 Inch",
-    material: "Wood",
-    unit: "Piece",
-    purchasePrice: 350,
-    sellingPrice: 599,
-    wholesalePrice: 500,
-    gst: 18,
-    hsnCode: "4414",
-    stock: 34,
-    reorderLevel: 15,
-    location: "Main Warehouse",
-    description: "Premium wooden photo frame with polished finish.",
-    status: "Active",
-    image: null,
-  },
-  {
-    id: "PROD-003",
-    name: "White MDF Frame",
-    sku: "BG-FRM-003",
-    category: "MDF Frame",
-    subCategory: "Standard",
-    type: "Finished Product",
-    size: "1 Inch",
-    material: "MDF",
-    unit: "Piece",
-    purchasePrice: 140,
-    sellingPrice: 249,
-    wholesalePrice: 210,
-    gst: 18,
-    hsnCode: "4414",
-    stock: 12,
-    reorderLevel: 20,
-    location: "Production Store",
-    description: "White MDF frame suitable for standard photo printing.",
-    status: "Active",
-    image: null,
-  },
-  {
-    id: "PROD-004",
-    name: "Golden Designer Frame",
-    sku: "BG-FRM-004",
-    category: "Designer Frame",
-    subCategory: "Luxury",
-    type: "Finished Product",
-    size: "3 Inch",
-    material: "Wood",
-    unit: "Piece",
-    purchasePrice: 500,
-    sellingPrice: 899,
-    wholesalePrice: 750,
-    gst: 18,
-    hsnCode: "4414",
-    stock: 0,
-    reorderLevel: 10,
-    location: "Main Warehouse",
-    description: "Decorative golden designer frame.",
-    status: "Active",
-    image: null,
-  },
-  {
-    id: "PROD-005",
-    name: "Frame Back Board",
-    sku: "BG-BRD-001",
-    category: "Raw Material",
-    subCategory: "Board",
-    type: "Raw Material",
-    size: "12x18",
-    material: "MDF",
-    unit: "Piece",
-    purchasePrice: 45,
-    sellingPrice: 65,
-    wholesalePrice: 55,
-    gst: 18,
-    hsnCode: "4411",
-    stock: 145,
-    reorderLevel: 50,
-    location: "Raw Material Store",
-    description: "MDF back board used in photo frame production.",
-    status: "Active",
-    image: null,
-  },
-  {
-    id: "PROD-006",
-    name: "Glass Sheet",
-    sku: "BG-GLS-001",
-    category: "Raw Material",
-    subCategory: "Glass",
-    type: "Raw Material",
-    size: "12x18",
-    material: "Glass",
-    unit: "Sheet",
-    purchasePrice: 80,
-    sellingPrice: 120,
-    wholesalePrice: 100,
-    gst: 18,
-    hsnCode: "7007",
-    stock: 85,
-    reorderLevel: 30,
-    location: "Glass Store",
-    description: "Clear glass sheet for photo frame production.",
-    status: "Active",
-    image: null,
-  },
-  {
-    id: "PROD-007",
-    name: "Metal Frame Clip",
-    sku: "BG-CLP-001",
-    category: "Accessories",
-    subCategory: "Frame Parts",
-    type: "Accessory",
-    size: "Small",
-    material: "Metal",
-    unit: "Piece",
-    purchasePrice: 4,
-    sellingPrice: 8,
-    wholesalePrice: 6,
-    gst: 18,
-    hsnCode: "8302",
-    stock: 520,
-    reorderLevel: 100,
-    location: "Accessories Store",
-    description: "Metal clip used to secure frame back panels.",
-    status: "Active",
-    image: null,
-  },
-  {
-    id: "PROD-008",
-    name: "Photo Printing Paper",
-    sku: "BG-PPR-001",
-    category: "Printing Material",
-    subCategory: "Paper",
-    type: "Printing Material",
-    size: "A4",
-    material: "Paper",
-    unit: "Pack",
-    purchasePrice: 180,
-    sellingPrice: 250,
-    wholesalePrice: 220,
-    gst: 18,
-    hsnCode: "4811",
-    stock: 8,
-    reorderLevel: 25,
-    location: "Printing Store",
-    description: "Premium photo printing paper.",
-    status: "Active",
-    image: null,
-  },
-];
-
-const normalizeProduct = (product) => ({
+const normalizeProduct = (
+  product
+) => ({
   ...product,
-  id: product._id || product.id,
+
+  id:
+    product._id ||
+    product.id,
 });
 
-export default function Product({ token }) {
-  const [products, setProducts] = useState(token ? [] : initialProducts);
-  const [error, setError] = useState("");
+export default function Product({
+  token,
+}) {
+  const [
+    products,
+    setProducts,
+  ] = useState([]);
+
+  const [
+    staff,
+    setStaff,
+  ] = useState([]);
+
+  const [
+    error,
+    setError,
+  ] = useState("");
+
+  const [
+    search,
+    setSearch,
+  ] = useState("");
+
+  const [
+    category,
+    setCategory,
+  ] = useState("All");
+
+  const [
+    type,
+    setType,
+  ] = useState("All");
+
+  const [
+    status,
+    setStatus,
+  ] = useState("All");
+
+  const [
+    showForm,
+    setShowForm,
+  ] = useState(false);
+
+  const [
+    editingProduct,
+    setEditingProduct,
+  ] = useState(null);
+
+  const [
+    selectedProduct,
+    setSelectedProduct,
+  ] = useState(null);
+
+  const [
+    deleteProduct,
+    setDeleteProduct,
+  ] = useState(null);
+
+  const loadProducts =
+    async () => {
+      try {
+        const result =
+          await listResource(
+            token,
+            "products"
+          );
+
+        setProducts(
+          result.data
+            .filter(
+              (item) =>
+                item &&
+                item._id &&
+                item.name
+            )
+            .map(
+              normalizeProduct
+            )
+        );
+      } catch (loadError) {
+        setError(
+          loadError.message
+        );
+      }
+    };
 
   useEffect(() => {
     if (!token) return;
 
-    listResource(token, "products")
-      .then((result) => setProducts(result.data.map(normalizeProduct)))
-      .catch((loadError) => setError(loadError.message));
+    loadProducts();
+
+    listStaff(token)
+  .then((result) => {
+    const rows =
+      result.staff || [];
+
+    const assignableStaff =
+      rows.filter(
+        (user) =>
+          user.status === "Active" &&
+          [
+            "Manager",
+            "Employee",
+          ].includes(user.role)
+      );
+
+    setStaff(
+      assignableStaff
+    );
+  })
+  .catch((error) => {
+    console.error(
+      "Unable to load staff:",
+      error
+    );
+
+    setStaff([]);
+  });
   }, [token]);
 
-  const [search, setSearch] = useState("");
-  const [category, setCategory] = useState("All");
-  const [type, setType] = useState("All");
-  const [status, setStatus] = useState("All");
+  const filteredProducts =
+    useMemo(() => {
+      const query =
+        search
+          .trim()
+          .toLowerCase();
 
-  const [showForm, setShowForm] = useState(false);
-  const [editingProduct, setEditingProduct] = useState(null);
+      return products.filter(
+        (product) => {
+          const matchesSearch =
+            !query ||
+            [
+              product.name,
+              product.sku,
+              product.category,
+              product.material,
+            ]
+              .filter(Boolean)
+              .join(" ")
+              .toLowerCase()
+              .includes(query);
 
-  const [selectedProduct, setSelectedProduct] = useState(null);
+          const matchesCategory =
+            category ===
+              "All" ||
+            product.category ===
+              category;
 
-  const [deleteProduct, setDeleteProduct] = useState(null);
+          const matchesType =
+            type === "All" ||
+            product.type ===
+              type;
 
-  const filteredProducts = useMemo(() => {
-    return products.filter((product) => {
-      const searchValue = search.toLowerCase();
+          const matchesStatus =
+            status === "All" ||
+            product.status ===
+              status;
 
-      const matchesSearch =
-        product.name.toLowerCase().includes(searchValue) ||
-        product.sku.toLowerCase().includes(searchValue) ||
-        product.id.toLowerCase().includes(searchValue);
-
-      const matchesCategory =
-        category === "All" || product.category === category;
-
-      const matchesType =
-        type === "All" || product.type === type;
-
-      const matchesStatus =
-        status === "All" || product.status === status;
-
-      return (
-        matchesSearch &&
-        matchesCategory &&
-        matchesType &&
-        matchesStatus
+          return (
+            matchesSearch &&
+            matchesCategory &&
+            matchesType &&
+            matchesStatus
+          );
+        }
       );
-    });
-  }, [products, search, category, type, status]);
-
-  const handleAddProduct = () => {
-    setEditingProduct(null);
-    setShowForm(true);
-  };
-
-  const handleEditProduct = (product) => {
-    setSelectedProduct(null);
-    setEditingProduct(product);
-    setShowForm(true);
-  };
-
-  const handleSaveProduct = async (productData) => {
-    try {
-      const result = editingProduct
-        ? await updateResource(token, "products", editingProduct.id, productData)
-        : await createResource(token, "products", productData);
-      const savedProduct = normalizeProduct(result.data);
-
-      setProducts((prev) =>
-        editingProduct
-          ? prev.map((product) =>
-              product.id === editingProduct.id ? savedProduct : product
-            )
-          : [savedProduct, ...prev]
-      );
-      setShowForm(false);
-      setEditingProduct(null);
-    } catch (saveError) {
-      setError(saveError.message);
-    }
-  };
-
-  const handleDeleteProduct = async () => {
-    if (!deleteProduct) return;
-
-    try {
-      await deleteResource(token, "products", deleteProduct.id);
-      setProducts((prev) =>
-        prev.filter((product) => product.id !== deleteProduct.id)
-      );
-      setDeleteProduct(null);
-      setSelectedProduct(null);
-    } catch (deleteError) {
-      setError(deleteError.message);
-    }
-  };
-
-  const handleToggleStatus = (product) => {
-    setProducts((prev) =>
-      prev.map((item) =>
-        item.id === product.id
-          ? {
-              ...item,
-              status:
-                item.status === "Active"
-                  ? "Inactive"
-                  : "Active",
-            }
-          : item
-      )
-    );
-  };
+    }, [
+      products,
+      search,
+      category,
+      type,
+      status,
+    ]);
 
   const categories = [
-    ...new Set(products.map((product) => product.category)),
+    ...new Set(
+      products
+        .map(
+          (item) =>
+            item.category
+        )
+        .filter(Boolean)
+    ),
   ];
 
   const types = [
-    ...new Set(products.map((product) => product.type)),
+    ...new Set(
+      products
+        .map(
+          (item) =>
+            item.type
+        )
+        .filter(Boolean)
+    ),
   ];
 
-  return (
-    <div className="min-h-full bg-slate-50 p-6">
+  const handleSave =
+    async (
+      productData
+    ) => {
+      try {
+        setError("");
 
+        const result =
+          editingProduct
+            ? await updateResource(
+                token,
+                "products",
+                editingProduct.id,
+                productData
+              )
+            : await createResource(
+                token,
+                "products",
+                productData
+              );
+
+        const saved =
+          normalizeProduct(
+            result.data
+          );
+
+        setProducts(
+          (current) =>
+            editingProduct
+              ? current.map(
+                  (item) =>
+                    item.id ===
+                    editingProduct.id
+                      ? saved
+                      : item
+                )
+              : [
+                  saved,
+                  ...current,
+                ]
+        );
+
+        setShowForm(false);
+        setEditingProduct(
+          null
+        );
+      } catch (saveError) {
+        setError(
+          saveError.message
+        );
+      }
+    };
+
+  const handleToggleStatus =
+    async (product) => {
+      try {
+        const newStatus =
+          product.status ===
+          "Active"
+            ? "Inactive"
+            : "Active";
+
+        const result =
+          await updateResource(
+            token,
+            "products",
+            product.id,
+            {
+              status:
+                newStatus,
+            }
+          );
+
+        const updated =
+          normalizeProduct(
+            result.data
+          );
+
+        setProducts(
+          (current) =>
+            current.map(
+              (item) =>
+                item.id ===
+                product.id
+                  ? updated
+                  : item
+            )
+        );
+      } catch (toggleError) {
+        setError(
+          toggleError.message
+        );
+      }
+    };
+
+  const handleDelete =
+    async () => {
+      if (!deleteProduct) {
+        return;
+      }
+
+      try {
+        await deleteResource(
+          token,
+          "products",
+          deleteProduct.id
+        );
+
+        setProducts(
+          (current) =>
+            current.filter(
+              (item) =>
+                item.id !==
+                deleteProduct.id
+            )
+        );
+
+        setDeleteProduct(
+          null
+        );
+
+        setSelectedProduct(
+          null
+        );
+      } catch (deleteError) {
+        setError(
+          deleteError.message
+        );
+      }
+    };
+
+  return (
+    <div className="min-h-full bg-slate-50 p-4 sm:p-6">
       {error && (
-        <div className="mb-4 rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700" role="alert">
+        <div className="mb-5 rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
           {error}
         </div>
       )}
 
-      <ProductHeader onAdd={handleAddProduct} />
+      <ProductHeader
+        onAdd={() => {
+          setEditingProduct(
+            null
+          );
 
-      <ProductSummary products={products} />
+          setShowForm(true);
+        }}
+      />
+
+      <ProductSummary
+        products={products}
+      />
 
       <ProductFilters
         search={search}
         setSearch={setSearch}
         category={category}
-        setCategory={setCategory}
+        setCategory={
+          setCategory
+        }
         type={type}
         setType={setType}
         status={status}
-        setStatus={setStatus}
-        categories={categories}
+        setStatus={
+          setStatus
+        }
+        categories={
+          categories
+        }
         types={types}
       />
 
       <ProductTable
-        products={filteredProducts}
-        onView={setSelectedProduct}
-        onEdit={handleEditProduct}
-        onDelete={setDeleteProduct}
-        onToggleStatus={handleToggleStatus}
+        products={
+          filteredProducts
+        }
+        onView={
+          setSelectedProduct
+        }
+        onEdit={(product) => {
+          setSelectedProduct(
+            null
+          );
+
+          setEditingProduct(
+            product
+          );
+
+          setShowForm(true);
+        }}
+        onDelete={
+          setDeleteProduct
+        }
+        onToggleStatus={
+          handleToggleStatus
+        }
       />
 
       {showForm && (
         <ProductForm
-          product={editingProduct}
+          product={
+            editingProduct
+          }
+          staff={staff}
           onClose={() => {
             setShowForm(false);
-            setEditingProduct(null);
+
+            setEditingProduct(
+              null
+            );
           }}
-          onSave={handleSaveProduct}
+          onSave={
+            handleSave
+          }
         />
       )}
 
       {selectedProduct && (
         <ProductDetails
-          product={selectedProduct}
-          onClose={() => setSelectedProduct(null)}
-          onEdit={handleEditProduct}
-          onDelete={setDeleteProduct}
+          product={
+            selectedProduct
+          }
+          onClose={() =>
+            setSelectedProduct(
+              null
+            )
+          }
+          onEdit={(
+            product
+          ) => {
+            setSelectedProduct(
+              null
+            );
+
+            setEditingProduct(
+              product
+            );
+
+            setShowForm(true);
+          }}
+          onDelete={
+            setDeleteProduct
+          }
         />
       )}
 
       {deleteProduct && (
         <DeleteProductModal
-          product={deleteProduct}
-          onCancel={() => setDeleteProduct(null)}
-          onConfirm={handleDeleteProduct}
+          product={
+            deleteProduct
+          }
+          onCancel={() =>
+            setDeleteProduct(
+              null
+            )
+          }
+          onConfirm={
+            handleDelete
+          }
         />
       )}
     </div>

@@ -1,4 +1,9 @@
-import { useEffect, useMemo, useState } from "react";
+import {
+  useEffect,
+  useMemo,
+  useState,
+} from "react";
+
 import InventoryHeader from "./InventoryHeader";
 import InventorySummary from "./InventorySummary";
 import InventoryFilters from "./InventoryFilters";
@@ -6,282 +11,643 @@ import InventoryTable from "./InventoryTable";
 import StockMovementModal from "./StockMovementModal";
 import StockAdjustmentModal from "./StockAdjustmentModal";
 import InventoryDetails from "./InventoryDetails";
-import { listResource, updateResource } from "../../lib/api";
 
-const normalizeInventory = (item) => ({
+import {
+  listResource,
+  moveInventoryStock,
+  adjustInventoryStock,
+  getInventoryMovements,
+} from "../../lib/api";
+
+const frameSize = (
+  product
+) => {
+  if (
+    !product?.isFrame ||
+    !product.frameSize?.width ||
+    !product.frameSize?.height
+  ) {
+    return "";
+  }
+
+  return `${product.frameSize.width}x${product.frameSize.height} ${product.frameSize.unit}`;
+};
+
+const normalizeInventory = (
+  item
+) => ({
   ...item,
-  id: item._id || item.id,
-  productId: item.product?._id || item.productId,
-  name: item.product?.name || item.name || "Unknown product",
-  sku: item.product?.sku || item.sku || "",
-  category: item.product?.category || item.category || "",
-  size: item.product?.size || item.size || "",
-  unit: item.product?.unit || item.unit || "Piece",
-  available: item.availableQuantity ?? item.available ?? 0,
-  reserved: item.reservedQuantity ?? item.reserved ?? 0,
-  reorderLevel: item.reorderLevel ?? 0,
+
+  id:
+    item._id ||
+    item.id,
+
+  productId:
+    item.product?._id ||
+    item.product,
+
+  name:
+    item.product?.name ||
+    "Unknown product",
+
+  sku:
+    item.product?.sku ||
+    "",
+
+  category:
+    item.product?.category ||
+    "",
+
+  type:
+    item.product?.type ||
+    "",
+
+  size:
+    frameSize(
+      item.product
+    ),
+
+  unit:
+    item.product?.unit ||
+    "Piece",
+
+  conversions:
+    item.product
+      ?.conversions ||
+    [],
+
+  conversionEnabled:
+    Boolean(
+      item.product
+        ?.conversionEnabled
+    ),
+
+  minimumStockLevel:
+    Number(
+      item.product
+        ?.minimumStockLevel ||
+        0
+    ),
+
+  assignedTo:
+    item.product
+      ?.assignedTo ||
+    null,
+
+  available:
+    Number(
+      item.availableQuantity ||
+        0
+    ),
+
+  reserved:
+    Number(
+      item.reservedQuantity ||
+        0
+    ),
+
+  total:
+    Number(
+      item.quantity ||
+        0
+    ),
+
+  location:
+    item.location ||
+    item.product?.location ||
+    "",
 });
 
-const Inventory = ({ token }) => {
-  const [inventory, setInventory] = useState(
-    token ? [] : INITIAL_INVENTORY
-  );
-  const [error, setError] = useState("");
+export default function Inventory({
+  token,
+}) {
+  const [
+    inventory,
+    setInventory,
+  ] = useState([]);
+
+  const [
+    error,
+    setError,
+  ] = useState("");
+
+  const [
+    search,
+    setSearch,
+  ] = useState("");
+
+  const [
+    category,
+    setCategory,
+  ] = useState("All");
+
+  const [
+    size,
+    setSize,
+  ] = useState("All");
+
+  const [
+    status,
+    setStatus,
+  ] = useState("All");
+
+  const [
+    location,
+    setLocation,
+  ] = useState("All");
+
+  const [
+    selectedInventory,
+    setSelectedInventory,
+  ] = useState(null);
+
+  const [
+    showMovementModal,
+    setShowMovementModal,
+  ] = useState(false);
+
+  const [
+    showAdjustmentModal,
+    setShowAdjustmentModal,
+  ] = useState(false);
+
+  const [
+    showDetails,
+    setShowDetails,
+  ] = useState(false);
+
+  const [
+    movements,
+    setMovements,
+  ] = useState([]);
+
+  const loadInventory =
+    async () => {
+      try {
+        const result =
+          await listResource(
+            token,
+            "inventory"
+          );
+
+        setInventory(
+          result.data.map(
+            normalizeInventory
+          )
+        );
+      } catch (loadError) {
+        setError(
+          loadError.message
+        );
+      }
+    };
 
   useEffect(() => {
     if (!token) return;
 
-    listResource(token, "inventory")
-      .then((result) => setInventory(result.data.map(normalizeInventory)))
-      .catch((loadError) => setError(loadError.message));
+    loadInventory();
   }, [token]);
 
-  const [search, setSearch] = useState("");
-  const [category, setCategory] = useState("All");
-  const [size, setSize] = useState("All");
-  const [status, setStatus] = useState("All");
-  const [location, setLocation] = useState("All");
+  const getStatus = (
+    item
+  ) => {
+    if (
+      item.available <= 0
+    ) {
+      return "Out of Stock";
+    }
 
-  const [showMovementModal, setShowMovementModal] = useState(false);
-  const [showAdjustmentModal, setShowAdjustmentModal] = useState(false);
+    if (
+      item.minimumStockLevel >
+        0 &&
+      item.available <=
+        item.minimumStockLevel
+    ) {
+      return "Low Stock";
+    }
 
-  const [selectedInventory, setSelectedInventory] = useState(null);
-  const [showDetails, setShowDetails] = useState(false);
-
-  const getStatus = (item) => {
-    if (item.available === 0) return "Out of Stock";
-    if (item.available <= item.reorderLevel) return "Low Stock";
     return "In Stock";
   };
 
-  const filteredInventory = useMemo(() => {
-    return inventory.filter((item) => {
-      const searchableText = [
-        item.name,
-        item.sku,
-        item.category,
-        item.size,
-      ]
-        .join(" ")
-        .toLowerCase();
+  const filteredInventory =
+    useMemo(() => {
+      const query =
+        search
+          .trim()
+          .toLowerCase();
 
-      const matchesSearch = searchableText.includes(
-        search.toLowerCase()
+      return inventory.filter(
+        (item) => {
+          const matchesSearch =
+            !query ||
+            [
+              item.name,
+              item.sku,
+              item.category,
+              item.size,
+            ]
+              .join(" ")
+              .toLowerCase()
+              .includes(query);
+
+          return (
+            matchesSearch &&
+            (category ===
+              "All" ||
+              item.category ===
+                category) &&
+            (size ===
+              "All" ||
+              item.size ===
+                size) &&
+            (location ===
+              "All" ||
+              item.location ===
+                location) &&
+            (status ===
+              "All" ||
+              getStatus(
+                item
+              ) === status)
+          );
+        }
       );
+    }, [
+      inventory,
+      search,
+      category,
+      size,
+      status,
+      location,
+    ]);
 
-      const matchesCategory =
-        category === "All" || item.category === category;
+  const summary =
+    useMemo(() => {
+      const totalProducts =
+        inventory.length;
 
-      const matchesSize =
-        size === "All" || item.size === size;
+      const inStock =
+        inventory.filter(
+          (item) =>
+            getStatus(
+              item
+            ) === "In Stock"
+        ).length;
 
-      const matchesLocation =
-        location === "All" || item.location === location;
+      const lowStock =
+        inventory.filter(
+          (item) =>
+            getStatus(
+              item
+            ) === "Low Stock"
+        ).length;
 
-      const itemStatus = getStatus(item);
+      const outOfStock =
+        inventory.filter(
+          (item) =>
+            getStatus(
+              item
+            ) ===
+            "Out of Stock"
+        ).length;
 
-      const matchesStatus =
-        status === "All" || itemStatus === status;
-
-      return (
-        matchesSearch &&
-        matchesCategory &&
-        matchesSize &&
-        matchesLocation &&
-        matchesStatus
-      );
-    });
-  }, [inventory, search, category, size, status, location]);
-
-  const summary = useMemo(() => {
-    const totalProducts = inventory.length;
-
-    const totalUnits = inventory.reduce(
-      (sum, item) => sum + item.available,
-      0
-    );
-
-    const lowStock = inventory.filter(
-      (item) =>
-        item.available > 0 &&
-        item.available <= item.reorderLevel
-    ).length;
-
-    const outOfStock = inventory.filter(
-      (item) => item.available === 0
-    ).length;
-
-    return {
-      totalProducts,
-      totalUnits,
-      lowStock,
-      outOfStock,
-    };
-  }, [inventory]);
+      return {
+        totalProducts,
+        inStock,
+        lowStock,
+        outOfStock,
+      };
+    }, [inventory]);
 
   const categories = [
     "All",
-    ...new Set(inventory.map((item) => item.category)),
+    ...new Set(
+      inventory
+        .map(
+          (item) =>
+            item.category
+        )
+        .filter(Boolean)
+    ),
   ];
 
   const sizes = [
     "All",
-    ...new Set(inventory.map((item) => item.size)),
+    ...new Set(
+      inventory
+        .map(
+          (item) =>
+            item.size
+        )
+        .filter(Boolean)
+    ),
   ];
 
   const locations = [
     "All",
-    ...new Set(inventory.map((item) => item.location)),
+    ...new Set(
+      inventory
+        .map(
+          (item) =>
+            item.location
+        )
+        .filter(Boolean)
+    ),
   ];
 
-  const handleStockMovement = async ({
-    inventoryId,
-    type,
-    quantity,
-    reason,
-  }) => {
-    if (!token) return;
+  const replaceInventory = (
+    updated
+  ) => {
+    const normalized =
+      normalizeInventory(
+        updated
+      );
 
-    const item = inventory.find((entry) => entry.id === inventoryId);
-    if (!item) return;
+    setInventory(
+      (current) =>
+        current.map(
+          (item) =>
+            item.id ===
+            normalized.id
+              ? normalized
+              : item
+        )
+    );
 
-    const newAvailable = type === "in"
-      ? item.available + Number(quantity)
-      : Math.max(0, item.available - Number(quantity));
-
-    try {
-      const result = await updateResource(token, "inventory", inventoryId, {
-        quantity: newAvailable + item.reserved,
-        availableQuantity: newAvailable,
-        reservedQuantity: item.reserved,
-        lastMovementAt: new Date().toISOString(),
-      });
-      setInventory((current) => current.map((entry) =>
-        entry.id === inventoryId ? normalizeInventory(result.data) : entry
-      ));
-    } catch (movementError) {
-      setError(movementError.message);
-    }
-
-    setShowMovementModal(false);
+    setSelectedInventory(
+      normalized
+    );
   };
 
-  const handleAdjustment = async ({
-    inventoryId,
-    quantity,
-    reason,
-  }) => {
-    if (!token) return;
+  const handleMovement =
+    async (data) => {
+      try {
+        const result =
+          await moveInventoryStock(
+            token,
+            data.inventoryId,
+            {
+              type:
+                data.type,
 
-    const item = inventory.find((entry) => entry.id === inventoryId);
-    if (!item) return;
+              quantity:
+                data.quantity,
 
-    try {
-      const availableQuantity = Math.max(0, Number(quantity));
-      const result = await updateResource(token, "inventory", inventoryId, {
-        quantity: availableQuantity + item.reserved,
-        availableQuantity,
-        reservedQuantity: item.reserved,
-        lastMovementAt: new Date().toISOString(),
-      });
-      setInventory((current) => current.map((entry) =>
-        entry.id === inventoryId ? normalizeInventory(result.data) : entry
-      ));
-    } catch (adjustmentError) {
-      setError(adjustmentError.message);
-    }
+              unit:
+                data.unit,
 
-    setShowAdjustmentModal(false);
-  };
+              reason:
+                data.reason,
+            }
+          );
 
-  const handleViewDetails = (item) => {
-    setSelectedInventory(item);
-    setShowDetails(true);
-  };
+        replaceInventory(
+          result.data
+        );
+
+        setShowMovementModal(
+          false
+        );
+      } catch (movementError) {
+        setError(
+          movementError.message
+        );
+      }
+    };
+
+  const handleAdjustment =
+    async (data) => {
+      try {
+        const result =
+          await adjustInventoryStock(
+            token,
+            data.inventoryId,
+            {
+              quantity:
+                data.quantity,
+
+              reason:
+                data.reason,
+            }
+          );
+
+        replaceInventory(
+          result.data
+        );
+
+        setShowAdjustmentModal(
+          false
+        );
+      } catch (adjustmentError) {
+        setError(
+          adjustmentError.message
+        );
+      }
+    };
+
+  const handleDetails =
+    async (item) => {
+      setSelectedInventory(
+        item
+      );
+
+      setShowDetails(true);
+
+      try {
+        const result =
+          await getInventoryMovements(
+            token,
+            item.id
+          );
+
+        setMovements(
+          result.data || []
+        );
+      } catch {
+        setMovements([]);
+      }
+    };
 
   return (
-    <div className="min-h-full p-4 sm:p-6 ">
+    <div className="min-h-full p-4 sm:p-6">
       {error && (
-        <div className="mb-4 rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700" role="alert">
+        <div className="mb-4 rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
           {error}
         </div>
       )}
+
       <div className="mx-auto max-w-[1600px] space-y-6">
         <InventoryHeader
-          onStockMovement={() =>
-            setShowMovementModal(true)
-          }
-          onStockAdjustment={() =>
-            setShowAdjustmentModal(true)
-          }
+          onStockMovement={() => {
+            setSelectedInventory(
+              null
+            );
+
+            setShowMovementModal(
+              true
+            );
+          }}
+          onStockAdjustment={() => {
+            setSelectedInventory(
+              null
+            );
+
+            setShowAdjustmentModal(
+              true
+            );
+          }}
         />
 
-        <InventorySummary summary={summary} />
+        <InventorySummary
+          summary={
+            summary
+          }
+        />
 
         <InventoryFilters
           search={search}
-          setSearch={setSearch}
-          category={category}
-          setCategory={setCategory}
+          setSearch={
+            setSearch
+          }
+          category={
+            category
+          }
+          setCategory={
+            setCategory
+          }
           size={size}
-          setSize={setSize}
-          status={status}
-          setStatus={setStatus}
-          location={location}
-          setLocation={setLocation}
-          categories={categories}
+          setSize={
+            setSize
+          }
+          status={
+            status
+          }
+          setStatus={
+            setStatus
+          }
+          location={
+            location
+          }
+          setLocation={
+            setLocation
+          }
+          categories={
+            categories
+          }
           sizes={sizes}
-          locations={locations}
+          locations={
+            locations
+          }
         />
 
         <InventoryTable
-          inventory={filteredInventory}
-          getStatus={getStatus}
-          onViewDetails={handleViewDetails}
-          onStockMovement={(item) => {
-            setSelectedInventory(item);
-            setShowMovementModal(true);
+          inventory={
+            filteredInventory
+          }
+          getStatus={
+            getStatus
+          }
+          onViewDetails={
+            handleDetails
+          }
+          onStockMovement={(
+            item
+          ) => {
+            setSelectedInventory(
+              item
+            );
+
+            setShowMovementModal(
+              true
+            );
           }}
-          onStockAdjustment={(item) => {
-            setSelectedInventory(item);
-            setShowAdjustmentModal(true);
+          onStockAdjustment={(
+            item
+          ) => {
+            setSelectedInventory(
+              item
+            );
+
+            setShowAdjustmentModal(
+              true
+            );
           }}
         />
       </div>
 
       <StockMovementModal
-        open={showMovementModal}
-        inventory={inventory}
-        selectedInventory={selectedInventory}
+        open={
+          showMovementModal
+        }
+        inventory={
+          inventory
+        }
+        selectedInventory={
+          selectedInventory
+        }
         onClose={() => {
-          setShowMovementModal(false);
-          setSelectedInventory(null);
+          setShowMovementModal(
+            false
+          );
+
+          setSelectedInventory(
+            null
+          );
         }}
-        onSubmit={handleStockMovement}
+        onSubmit={
+          handleMovement
+        }
       />
 
       <StockAdjustmentModal
-        open={showAdjustmentModal}
-        inventory={inventory}
-        selectedInventory={selectedInventory}
+        open={
+          showAdjustmentModal
+        }
+        inventory={
+          inventory
+        }
+        selectedInventory={
+          selectedInventory
+        }
         onClose={() => {
-          setShowAdjustmentModal(false);
-          setSelectedInventory(null);
+          setShowAdjustmentModal(
+            false
+          );
+
+          setSelectedInventory(
+            null
+          );
         }}
-        onSubmit={handleAdjustment}
+        onSubmit={
+          handleAdjustment
+        }
       />
 
       <InventoryDetails
-        open={showDetails}
-        inventory={selectedInventory}
-        getStatus={getStatus}
+        open={
+          showDetails
+        }
+        inventory={
+          selectedInventory
+        }
+        movements={
+          movements
+        }
+        getStatus={
+          getStatus
+        }
         onClose={() => {
-          setShowDetails(false);
-          setSelectedInventory(null);
+          setShowDetails(
+            false
+          );
+
+          setSelectedInventory(
+            null
+          );
+
+          setMovements([]);
         }}
       />
     </div>
   );
-};
-
-export default Inventory;
+}

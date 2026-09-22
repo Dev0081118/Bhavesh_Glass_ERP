@@ -1,49 +1,120 @@
-import { useEffect, useState } from "react";
+import {
+  useEffect,
+  useState,
+} from "react";
+
 import {
   ArrowDownToLine,
   ArrowUpFromLine,
-  PackagePlus,
   X,
 } from "lucide-react";
 
-const StockMovementModal = ({
+export default function StockMovementModal({
   open,
   inventory,
   selectedInventory,
   onClose,
   onSubmit,
-}) => {
-  const [inventoryId, setInventoryId] = useState("");
-  const [type, setType] = useState("in");
-  const [quantity, setQuantity] = useState("");
-  const [reason, setReason] = useState("");
+}) {
+  const [
+    inventoryId,
+    setInventoryId,
+  ] = useState("");
+
+  const [
+    type,
+    setType,
+  ] = useState("in");
+
+  const [
+    quantity,
+    setQuantity,
+  ] = useState("");
+
+  const [
+    unit,
+    setUnit,
+  ] = useState("");
+
+  const [
+    reason,
+    setReason,
+  ] = useState("");
 
   useEffect(() => {
     if (!open) return;
 
-    setInventoryId(selectedInventory?.id || inventory[0]?.id || "");
+    const selected =
+      selectedInventory ||
+      inventory[0];
+
+    setInventoryId(
+      selected?.id || ""
+    );
+
+    setUnit(
+      selected?.unit ||
+      ""
+    );
+
     setType("in");
     setQuantity("");
     setReason("");
-  }, [open, selectedInventory, inventory]);
+  }, [
+    open,
+    selectedInventory,
+    inventory,
+  ]);
 
   if (!open) return null;
 
-  const selectedItem = inventory.find(
-    (item) => item.id === inventoryId
-  );
+  const selected =
+    inventory.find(
+      (item) =>
+        item.id ===
+        inventoryId
+    );
 
-  const handleSubmit = (event) => {
+  const availableUnits = [
+    selected?.unit,
+
+    ...(selected?.conversions ||
+      []).map(
+      (item) =>
+        item.unit
+    ),
+  ].filter(Boolean);
+
+  const equivalentPrimary =
+    selected &&
+    unit !== selected.unit
+      ? Number(quantity || 0) /
+        Number(
+          selected.conversions?.find(
+            (conversion) =>
+              conversion.unit ===
+              unit
+          )?.factor || 1
+        )
+      : Number(
+          quantity || 0
+        );
+
+  const invalidOut =
+    type === "out" &&
+    selected &&
+    equivalentPrimary >
+      selected.available;
+
+  const submit = (
+    event
+  ) => {
     event.preventDefault();
 
-    const parsedQuantity = Number(quantity);
-
-    if (!inventoryId || parsedQuantity <= 0) return;
-
     if (
-      type === "out" &&
-      selectedItem &&
-      parsedQuantity > selectedItem.available
+      !inventoryId ||
+      Number(quantity) <= 0 ||
+      invalidOut
     ) {
       return;
     }
@@ -51,8 +122,11 @@ const StockMovementModal = ({
     onSubmit({
       inventoryId,
       type,
-      quantity: parsedQuantity,
-      reason: reason.trim(),
+      quantity:
+        Number(quantity),
+      unit,
+      reason:
+        reason.trim(),
     });
   };
 
@@ -60,148 +134,259 @@ const StockMovementModal = ({
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/50 p-4 backdrop-blur-sm">
       <div className="w-full max-w-lg overflow-hidden rounded-3xl bg-white shadow-2xl">
         <div className="flex items-center justify-between border-b border-slate-100 px-6 py-5">
-          <div className="flex items-center gap-3">
-            <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-emerald-50">
-              <PackagePlus className="h-5 w-5 text-emerald-600" />
-            </div>
+          <div>
+            <h2 className="font-semibold text-slate-900">
+              Stock Movement
+            </h2>
 
-            <div>
-              <h2 className="text-base font-semibold text-slate-900">
-                Stock Movement
-              </h2>
-
-              <p className="text-xs text-slate-500">
-                Add or remove inventory
-              </p>
-            </div>
+            <p className="text-xs text-slate-500">
+              Manually add or remove stock
+            </p>
           </div>
 
           <button
-            type="button"
-            onClick={onClose}
-            className="rounded-lg p-2 text-slate-400 transition hover:bg-slate-100 hover:text-slate-700"
+            onClick={
+              onClose
+            }
+            className="rounded-xl p-2 text-slate-400 hover:bg-slate-100"
           >
             <X className="h-5 w-5" />
           </button>
         </div>
 
-        <form onSubmit={handleSubmit}>
-          <div className="space-y-5 px-6 py-6">
+        <form
+          onSubmit={submit}
+          className="p-6"
+        >
+          <div className="space-y-5">
             <div>
-              <label className="mb-2 block text-sm font-medium text-slate-700">
-                Inventory Item
+              <label className="mb-1.5 block text-xs font-medium text-slate-600">
+                Product
               </label>
 
               <select
-                value={inventoryId}
-                onChange={(event) =>
-                  setInventoryId(event.target.value)
+                value={
+                  inventoryId
                 }
-                className="h-11 w-full rounded-xl border border-slate-200 bg-white px-3 text-sm text-slate-700 outline-none focus:border-slate-400 focus:ring-2 focus:ring-slate-100"
+                onChange={(
+                  event
+                ) => {
+                  const id =
+                    event.target
+                      .value;
+
+                  setInventoryId(
+                    id
+                  );
+
+                  const item =
+                    inventory.find(
+                      (
+                        row
+                      ) =>
+                        row.id ===
+                        id
+                    );
+
+                  setUnit(
+                    item?.unit ||
+                      ""
+                  );
+                }}
+                className="h-11 w-full rounded-xl border border-slate-200 px-3 text-sm"
               >
-                {inventory.map((item) => (
-                  <option key={item.id} value={item.id}>
-                    {item.name} — {item.sku}
-                  </option>
-                ))}
+                {inventory.map(
+                  (item) => (
+                    <option
+                      key={
+                        item.id
+                      }
+                      value={
+                        item.id
+                      }
+                    >
+                      {
+                        item.name
+                      }{" "}
+                      —{" "}
+                      {
+                        item.sku
+                      }
+                    </option>
+                  )
+                )}
               </select>
             </div>
 
-            {selectedItem && (
+            {selected && (
               <div className="rounded-xl bg-slate-50 p-4">
-                <div className="flex items-center justify-between">
-                  <span className="text-xs text-slate-500">
-                    Current Available Stock
-                  </span>
+                <p className="text-xs text-slate-400">
+                  Current Stock
+                </p>
 
-                  <span className="text-sm font-semibold text-slate-900">
-                    {selectedItem.available} {selectedItem.unit}
-                  </span>
-                </div>
+                <p className="mt-1 text-xl font-semibold text-slate-900">
+                  {
+                    selected.available
+                  }{" "}
+                  {
+                    selected.unit
+                  }
+                </p>
               </div>
             )}
 
-            <div>
-              <label className="mb-2 block text-sm font-medium text-slate-700">
-                Movement Type
-              </label>
+            <div className="grid grid-cols-2 gap-3">
+              <button
+                type="button"
+                onClick={() =>
+                  setType(
+                    "in"
+                  )
+                }
+                className={`flex items-center justify-center gap-2 rounded-xl border py-3 text-sm font-semibold ${
+                  type === "in"
+                    ? "border-emerald-200 bg-emerald-50 text-emerald-700"
+                    : "border-slate-200 text-slate-500"
+                }`}
+              >
+                <ArrowDownToLine className="h-4 w-4" />
+                Stock In
+              </button>
 
-              <div className="grid grid-cols-2 gap-3">
-                <button
-                  type="button"
-                  onClick={() => setType("in")}
-                  className={`flex items-center justify-center gap-2 rounded-xl border px-4 py-3 text-sm font-semibold transition ${
-                    type === "in"
-                      ? "border-emerald-200 bg-emerald-50 text-emerald-700"
-                      : "border-slate-200 bg-white text-slate-500 hover:bg-slate-50"
-                  }`}
-                >
-                  <ArrowDownToLine className="h-4 w-4" />
-                  Stock In
-                </button>
+              <button
+                type="button"
+                onClick={() =>
+                  setType(
+                    "out"
+                  )
+                }
+                className={`flex items-center justify-center gap-2 rounded-xl border py-3 text-sm font-semibold ${
+                  type === "out"
+                    ? "border-red-200 bg-red-50 text-red-700"
+                    : "border-slate-200 text-slate-500"
+                }`}
+              >
+                <ArrowUpFromLine className="h-4 w-4" />
+                Stock Out
+              </button>
+            </div>
 
-                <button
-                  type="button"
-                  onClick={() => setType("out")}
-                  className={`flex items-center justify-center gap-2 rounded-xl border px-4 py-3 text-sm font-semibold transition ${
-                    type === "out"
-                      ? "border-red-200 bg-red-50 text-red-700"
-                      : "border-slate-200 bg-white text-slate-500 hover:bg-slate-50"
-                  }`}
+            <div className="grid grid-cols-2 gap-3">
+              <div>
+                <label className="mb-1.5 block text-xs font-medium text-slate-600">
+                  Quantity
+                </label>
+
+                <input
+                  type="number"
+                  min="0"
+                  step="any"
+                  value={
+                    quantity
+                  }
+                  onChange={(
+                    event
+                  ) =>
+                    setQuantity(
+                      event.target
+                        .value
+                    )
+                  }
+                  className="h-11 w-full rounded-xl border border-slate-200 px-3"
+                />
+              </div>
+
+              <div>
+                <label className="mb-1.5 block text-xs font-medium text-slate-600">
+                  Unit
+                </label>
+
+                <select
+                  value={
+                    unit
+                  }
+                  onChange={(
+                    event
+                  ) =>
+                    setUnit(
+                      event.target
+                        .value
+                    )
+                  }
+                  className="h-11 w-full rounded-xl border border-slate-200 px-3"
                 >
-                  <ArrowUpFromLine className="h-4 w-4" />
-                  Stock Out
-                </button>
+                  {availableUnits.map(
+                    (
+                      currentUnit
+                    ) => (
+                      <option
+                        key={
+                          currentUnit
+                        }
+                        value={
+                          currentUnit
+                        }
+                      >
+                        {
+                          currentUnit
+                        }
+                      </option>
+                    )
+                  )}
+                </select>
               </div>
             </div>
 
-            <div>
-              <label className="mb-2 block text-sm font-medium text-slate-700">
-                Quantity
-              </label>
+            {selected &&
+              unit !==
+                selected.unit &&
+              quantity && (
+                <p className="rounded-lg bg-indigo-50 px-3 py-2 text-xs text-indigo-700">
+                  Equivalent stock movement:{" "}
+                  {equivalentPrimary.toFixed(
+                    4
+                  )}{" "}
+                  {selected.unit}
+                </p>
+              )}
 
-              <input
-                type="number"
-                min="1"
-                value={quantity}
-                onChange={(event) =>
-                  setQuantity(event.target.value)
-                }
-                placeholder="Enter quantity"
-                className="h-11 w-full rounded-xl border border-slate-200 px-3 text-sm outline-none focus:border-slate-400 focus:ring-2 focus:ring-slate-100"
-              />
-
-              {type === "out" &&
-                selectedItem &&
-                Number(quantity) > selectedItem.available && (
-                  <p className="mt-2 text-xs text-red-600">
-                    Quantity cannot exceed available stock.
-                  </p>
-                )}
-            </div>
+            {invalidOut && (
+              <p className="text-xs text-red-600">
+                This quantity exceeds available stock.
+              </p>
+            )}
 
             <div>
-              <label className="mb-2 block text-sm font-medium text-slate-700">
+              <label className="mb-1.5 block text-xs font-medium text-slate-600">
                 Reason
               </label>
 
               <textarea
-                rows="3"
-                value={reason}
-                onChange={(event) =>
-                  setReason(event.target.value)
+                rows={3}
+                value={
+                  reason
                 }
-                placeholder="e.g. Purchase received, customer order, damaged stock..."
-                className="w-full resize-none rounded-xl border border-slate-200 px-3 py-3 text-sm outline-none focus:border-slate-400 focus:ring-2 focus:ring-slate-100"
+                onChange={(
+                  event
+                ) =>
+                  setReason(
+                    event.target
+                      .value
+                  )
+                }
+                placeholder="Purchase correction, damaged stock, received manually..."
+                className="w-full resize-none rounded-xl border border-slate-200 p-3 text-sm"
               />
             </div>
           </div>
 
-          <div className="flex justify-end gap-3 border-t border-slate-100 bg-slate-50 px-6 py-4">
+          <div className="mt-6 flex justify-end gap-3">
             <button
               type="button"
-              onClick={onClose}
-              className="rounded-xl border border-slate-200 bg-white px-5 py-2.5 text-sm font-medium text-slate-700 hover:bg-slate-50"
+              onClick={
+                onClose
+              }
+              className="rounded-xl border border-slate-200 px-5 py-2.5 text-sm"
             >
               Cancel
             </button>
@@ -210,12 +395,12 @@ const StockMovementModal = ({
               type="submit"
               disabled={
                 !quantity ||
-                Number(quantity) <= 0 ||
-                (type === "out" &&
-                  selectedItem &&
-                  Number(quantity) > selectedItem.available)
+                Number(
+                  quantity
+                ) <= 0 ||
+                invalidOut
               }
-              className="rounded-xl bg-slate-900 px-5 py-2.5 text-sm font-semibold text-white transition hover:bg-slate-800 disabled:cursor-not-allowed disabled:opacity-40"
+              className="rounded-xl bg-slate-900 px-5 py-2.5 text-sm font-semibold text-white disabled:opacity-40"
             >
               Save Movement
             </button>
@@ -224,6 +409,4 @@ const StockMovementModal = ({
       </div>
     </div>
   );
-};
-
-export default StockMovementModal;
+}

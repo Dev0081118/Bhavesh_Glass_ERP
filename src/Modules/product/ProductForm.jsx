@@ -1,162 +1,743 @@
-import { useEffect, useState } from "react";
-import { X, Package, Save } from "lucide-react";
+import {
+  useEffect,
+  useState,
+} from "react";
+
+import {
+  FileText,
+  Image,
+  Package,
+  Plus,
+  Save,
+  Trash2,
+  Upload,
+  Video,
+  X,
+} from "lucide-react";
+
+const UNITS = [
+  "Piece",
+  "Sheet",
+  "Pack",
+  "Box",
+  "Kg",
+  "Gram",
+  "Meter",
+  "Feet",
+  "Roll",
+];
 
 const defaultForm = {
   name: "",
   sku: "",
-  category: "Photo Frame",
+  category: "",
   subCategory: "",
-  type: "Finished Product",
-  size: "",
+
+  type:
+    "Finished Product",
+
   material: "",
+
   unit: "Piece",
+
+  conversionEnabled:
+    false,
+
+  convertibleUnit:
+    "Piece",
+
+  conversionFactor: "",
+
+  conversionDescription:
+    "",
+
+  isFrame: false,
+
+  frameWidth: "",
+  frameHeight: "",
+  frameUnit: "inch",
+
+  dimensionLength: "",
+  dimensionWidth: "",
+  dimensionHeight: "",
+  dimensionUnit: "cm",
+
+  weightValue: "",
+  weightUnit: "kg",
+
+  media: [],
+
+  minimumStockLevel:
+    "",
+
+  location:
+    "Main Warehouse",
+
+  assignedTo: "",
+
   purchasePrice: "",
   sellingPrice: "",
   wholesalePrice: "",
   gst: "18",
   hsnCode: "",
-  stock: "",
-  reorderLevel: "",
-  location: "",
+
+  openingStock: "",
+
   description: "",
+
   status: "Active",
 };
 
+const numberOrNull = (
+  value
+) =>
+  value === "" ||
+  value === null ||
+  value === undefined
+    ? null
+    : Number(value);
+
 export default function ProductForm({
   product,
+  staff = [],
   onClose,
   onSave,
 }) {
-  const [form, setForm] = useState(defaultForm);
+  const [
+    form,
+    setForm,
+  ] = useState(
+    defaultForm
+  );
+
+  const [
+    fileError,
+    setFileError,
+  ] = useState("");
 
   useEffect(() => {
-    if (product) {
-      setForm({
-        ...defaultForm,
-        ...product,
-      });
-    } else {
-      setForm(defaultForm);
-    }
-  }, [product]);
+    if (!product) {
+      setForm(
+        defaultForm
+      );
 
-  const handleChange = (e) => {
-    const { name, value } = e.target;
-
-    setForm((prev) => ({
-      ...prev,
-      [name]: value,
-    }));
-  };
-
-  const handleSubmit = (e) => {
-    e.preventDefault();
-
-    if (!form.name.trim() || !form.sku.trim()) {
       return;
     }
 
-    onSave({
-      ...form,
-      purchasePrice: Number(form.purchasePrice) || 0,
-      sellingPrice: Number(form.sellingPrice) || 0,
-      wholesalePrice: Number(form.wholesalePrice) || 0,
-      gst: Number(form.gst) || 0,
-      stock: Number(form.stock) || 0,
-      reorderLevel: Number(form.reorderLevel) || 0,
+    const conversion =
+      product.conversions?.[0];
+
+    setForm({
+      ...defaultForm,
+
+      name:
+        product.name || "",
+
+      sku:
+        product.sku || "",
+
+      category:
+        product.category ||
+        "",
+
+      subCategory:
+        product.subCategory ||
+        "",
+
+      type:
+        product.type ||
+        "Finished Product",
+
+      material:
+        product.material ||
+        "",
+
+      unit:
+        product.unit ||
+        "Piece",
+
+      conversionEnabled:
+        Boolean(
+          product.conversionEnabled
+        ),
+
+      convertibleUnit:
+        conversion?.unit ||
+        "Piece",
+
+      conversionFactor:
+        conversion?.factor ??
+        "",
+
+      conversionDescription:
+        conversion?.description ||
+        "",
+
+      isFrame:
+        Boolean(
+          product.isFrame
+        ),
+
+      frameWidth:
+        product.frameSize
+          ?.width ?? "",
+
+      frameHeight:
+        product.frameSize
+          ?.height ?? "",
+
+      frameUnit:
+        product.frameSize
+          ?.unit ||
+        "inch",
+
+      dimensionLength:
+        product.dimensions
+          ?.length ?? "",
+
+      dimensionWidth:
+        product.dimensions
+          ?.width ?? "",
+
+      dimensionHeight:
+        product.dimensions
+          ?.height ?? "",
+
+      dimensionUnit:
+        product.dimensions
+          ?.unit || "cm",
+
+      weightValue:
+        product.weight
+          ?.value ?? "",
+
+      weightUnit:
+        product.weight
+          ?.unit || "kg",
+
+      media:
+        product.media || [],
+
+      minimumStockLevel:
+        product.minimumStockLevel ??
+        "",
+
+      location:
+        product.location ||
+        "Main Warehouse",
+
+      assignedTo:
+        product.assignedTo
+          ?._id ||
+        product.assignedTo ||
+        "",
+
+      purchasePrice:
+        product.purchasePrice ??
+        "",
+
+      sellingPrice:
+        product.sellingPrice ??
+        "",
+
+      wholesalePrice:
+        product.wholesalePrice ??
+        "",
+
+      gst:
+        product.gst ?? "18",
+
+      hsnCode:
+        product.hsnCode || "",
+
+      description:
+        product.description ||
+        "",
+
+      status:
+        product.status ||
+        "Active",
+
+      openingStock: "",
     });
+  }, [product]);
+
+  const change = (
+    name,
+    value
+  ) => {
+    setForm(
+      (current) => ({
+        ...current,
+        [name]: value,
+      })
+    );
+  };
+
+  const handleInput =
+    (event) => {
+      const {
+        name,
+        value,
+        type,
+        checked,
+      } = event.target;
+
+      change(
+        name,
+        type === "checkbox"
+          ? checked
+          : value
+      );
+    };
+
+  const readFile = (
+    file
+  ) =>
+    new Promise(
+      (
+        resolve,
+        reject
+      ) => {
+        const reader =
+          new FileReader();
+
+        reader.onload = () =>
+          resolve(
+            reader.result
+          );
+
+        reader.onerror =
+          reject;
+
+        reader.readAsDataURL(
+          file
+        );
+      }
+    );
+
+  const handleFiles =
+    async (event) => {
+      setFileError("");
+
+      const files =
+        Array.from(
+          event.target.files ||
+            []
+        );
+
+      const totalExisting =
+        form.media.reduce(
+          (total, item) =>
+            total +
+            Math.ceil(
+              (
+                item.dataUrl
+                  ?.length ||
+                0
+              ) *
+                0.75
+            ),
+          0
+        );
+
+      let newTotal =
+        totalExisting;
+
+      const newMedia = [];
+
+      for (const file of files) {
+        if (
+          file.size >
+          3 * 1024 * 1024
+        ) {
+          setFileError(
+            `${file.name} is larger than 3 MB.`
+          );
+
+          continue;
+        }
+
+        newTotal +=
+          file.size;
+
+        if (
+          newTotal >
+          8 * 1024 * 1024
+        ) {
+          setFileError(
+            "Total product files cannot exceed approximately 8 MB."
+          );
+
+          break;
+        }
+
+        const dataUrl =
+          await readFile(
+            file
+          );
+
+        let mediaType =
+          "document";
+
+        if (
+          file.type.startsWith(
+            "image/"
+          )
+        ) {
+          mediaType =
+            "image";
+        } else if (
+          file.type.startsWith(
+            "video/"
+          )
+        ) {
+          mediaType =
+            "video";
+        }
+
+        newMedia.push({
+          type: mediaType,
+          fileName:
+            file.name,
+          mimeType:
+            file.type ||
+            "application/octet-stream",
+          dataUrl,
+        });
+      }
+
+      setForm(
+        (current) => ({
+          ...current,
+
+          media: [
+            ...current.media,
+            ...newMedia,
+          ],
+        })
+      );
+
+      event.target.value =
+        "";
+    };
+
+  const removeMedia = (
+    index
+  ) => {
+    setForm(
+      (current) => ({
+        ...current,
+
+        media:
+          current.media.filter(
+            (_, mediaIndex) =>
+              mediaIndex !==
+              index
+          ),
+      })
+    );
+  };
+
+  const handleSubmit = (
+    event
+  ) => {
+    event.preventDefault();
+
+    if (
+      !form.name.trim() ||
+      !form.sku.trim() ||
+      !form.category.trim()
+    ) {
+      return;
+    }
+
+    if (
+      form.conversionEnabled &&
+      (!form.convertibleUnit ||
+        Number(
+          form.conversionFactor
+        ) <= 0)
+    ) {
+      setFileError(
+        "Enter a valid conversion factor."
+      );
+
+      return;
+    }
+
+    if (
+      form.isFrame &&
+      (!form.frameWidth ||
+        !form.frameHeight)
+    ) {
+      setFileError(
+        "Frame width and height are required for frame products."
+      );
+
+      return;
+    }
+
+    const payload = {
+      name:
+        form.name.trim(),
+
+      sku:
+        form.sku
+          .trim()
+          .toUpperCase(),
+
+      category:
+        form.category.trim(),
+
+      subCategory:
+        form.subCategory.trim(),
+
+      type: form.type,
+
+      material:
+        form.material.trim(),
+
+      unit: form.unit,
+
+      conversionEnabled:
+        form.conversionEnabled,
+
+      conversions:
+        form.conversionEnabled
+          ? [
+              {
+                unit:
+                  form.convertibleUnit,
+
+                factor:
+                  Number(
+                    form.conversionFactor
+                  ),
+
+                description:
+                  form.conversionDescription.trim(),
+              },
+            ]
+          : [],
+
+      isFrame:
+        form.isFrame,
+
+      frameSize:
+        form.isFrame
+          ? {
+              width:
+                numberOrNull(
+                  form.frameWidth
+                ),
+
+              height:
+                numberOrNull(
+                  form.frameHeight
+                ),
+
+              unit:
+                form.frameUnit,
+            }
+          : {
+              width: null,
+              height: null,
+              unit:
+                form.frameUnit,
+            },
+
+      dimensions: {
+        length:
+          numberOrNull(
+            form.dimensionLength
+          ),
+
+        width:
+          numberOrNull(
+            form.dimensionWidth
+          ),
+
+        height:
+          numberOrNull(
+            form.dimensionHeight
+          ),
+
+        unit:
+          form.dimensionUnit,
+      },
+
+      weight: {
+        value:
+          numberOrNull(
+            form.weightValue
+          ),
+
+        unit:
+          form.weightUnit,
+      },
+
+      media:
+        form.media,
+
+      minimumStockLevel:
+        Number(
+          form.minimumStockLevel
+        ) || 0,
+
+      location:
+        form.location.trim() ||
+        "Main Warehouse",
+
+      assignedTo:
+        form.assignedTo ||
+        null,
+
+      purchasePrice:
+        Number(
+          form.purchasePrice
+        ) || 0,
+
+      sellingPrice:
+        Number(
+          form.sellingPrice
+        ) || 0,
+
+      wholesalePrice:
+        Number(
+          form.wholesalePrice
+        ) || 0,
+
+      gst:
+        Number(form.gst) ||
+        0,
+
+      hsnCode:
+        form.hsnCode.trim(),
+
+      description:
+        form.description.trim(),
+
+      status:
+        form.status,
+    };
+
+    if (!product) {
+      payload.openingStock =
+        Number(
+          form.openingStock
+        ) || 0;
+    }
+
+    onSave(payload);
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/40 p-4 backdrop-blur-sm">
-      <div className="flex max-h-[92vh] w-full max-w-4xl flex-col overflow-hidden rounded-2xl bg-white shadow-2xl">
-
-        <div className="flex items-center justify-between border-b border-slate-100 px-6 py-4">
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/50 p-4 backdrop-blur-sm">
+      <div className="flex max-h-[94vh] w-full max-w-5xl flex-col overflow-hidden rounded-3xl bg-white shadow-2xl">
+        <div className="flex items-center justify-between border-b border-slate-100 px-6 py-5">
           <div className="flex items-center gap-3">
-            <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-slate-900 text-white">
-              <Package size={17} />
+            <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-slate-900 text-white">
+              <Package className="h-5 w-5" />
             </div>
 
             <div>
-              <h2 className="text-base font-semibold text-slate-900">
-                {product ? "Edit Product" : "Add Product"}
+              <h2 className="font-semibold text-slate-900">
+                {product
+                  ? "Edit Product"
+                  : "Create Product"}
               </h2>
 
-              <p className="text-xs text-slate-400">
-                {product
-                  ? "Update product information"
-                  : "Create a new product master"}
+              <p className="text-xs text-slate-500">
+                Product master, specification and inventory settings
               </p>
             </div>
           </div>
 
           <button
+            type="button"
             onClick={onClose}
-            className="rounded-lg p-2 text-slate-400 hover:bg-slate-100 hover:text-slate-900"
+            className="rounded-xl p-2 text-slate-400 hover:bg-slate-100"
           >
-            <X size={18} />
+            <X className="h-5 w-5" />
           </button>
         </div>
 
         <form
-          onSubmit={handleSubmit}
-          className="flex-1 overflow-y-auto px-6 py-5"
+          onSubmit={
+            handleSubmit
+          }
+          className="flex-1 overflow-y-auto p-6"
         >
-          <div className="space-y-6">
+          {fileError && (
+            <div className="mb-5 rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
+              {fileError}
+            </div>
+          )}
 
-            {/* Basic Information */}
-
-            <section>
-              <h3 className="mb-3 text-sm font-semibold text-slate-900">
-                Basic Information
-              </h3>
-
-              <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+          <div className="space-y-8">
+            <Section
+              number="01"
+              title="Product Information"
+            >
+              <div className="grid gap-4 md:grid-cols-2">
                 <Field
                   label="Product Name"
                   name="name"
-                  value={form.name}
-                  onChange={handleChange}
+                  value={
+                    form.name
+                  }
+                  onChange={
+                    handleInput
+                  }
                   required
                 />
 
                 <Field
-                  label="SKU"
+                  label="SKU / Product Code"
                   name="sku"
-                  value={form.sku}
-                  onChange={handleChange}
+                  value={
+                    form.sku
+                  }
+                  onChange={
+                    handleInput
+                  }
                   required
                 />
 
-                <SelectField
+                <Field
                   label="Category"
                   name="category"
-                  value={form.category}
-                  onChange={handleChange}
-                  options={[
-                    "Photo Frame",
-                    "MDF Frame",
-                    "Designer Frame",
-                    "Raw Material",
-                    "Accessories",
-                    "Printing Material",
-                    "Packaging Material",
-                    "Machine",
-                  ]}
+                  value={
+                    form.category
+                  }
+                  onChange={
+                    handleInput
+                  }
+                  required
+                  placeholder="e.g. Photo Frame, Glass, Metal"
                 />
 
                 <Field
                   label="Sub Category"
                   name="subCategory"
-                  value={form.subCategory}
-                  onChange={handleChange}
+                  value={
+                    form.subCategory
+                  }
+                  onChange={
+                    handleInput
+                  }
                 />
 
-                <SelectField
+                <Select
                   label="Product Type"
                   name="type"
-                  value={form.type}
-                  onChange={handleChange}
+                  value={
+                    form.type
+                  }
+                  onChange={
+                    handleInput
+                  }
                   options={[
                     "Finished Product",
                     "Raw Material",
@@ -168,186 +749,606 @@ export default function ProductForm({
                 />
 
                 <Field
-                  label="Size"
-                  name="size"
-                  value={form.size}
-                  onChange={handleChange}
-                />
-              </div>
-            </section>
-
-            {/* Product Details */}
-
-            <section>
-              <h3 className="mb-3 text-sm font-semibold text-slate-900">
-                Product Details
-              </h3>
-
-              <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
-                <Field
                   label="Material"
                   name="material"
-                  value={form.material}
-                  onChange={handleChange}
+                  value={
+                    form.material
+                  }
+                  onChange={
+                    handleInput
+                  }
+                  placeholder="Glass, MDF, Metal..."
+                />
+              </div>
+            </Section>
+
+            <Section
+              number="02"
+              title="Unit & Conversion"
+            >
+              <div className="grid gap-4 md:grid-cols-2">
+                <Select
+                  label="Primary Unit"
+                  name="unit"
+                  value={
+                    form.unit
+                  }
+                  onChange={
+                    handleInput
+                  }
+                  options={
+                    UNITS
+                  }
                 />
 
-                <SelectField
-                  label="Unit"
-                  name="unit"
-                  value={form.unit}
-                  onChange={handleChange}
-                  options={[
-                    "Piece",
-                    "Sheet",
-                    "Pack",
-                    "Box",
-                    "Kg",
-                    "Meter",
-                  ]}
+                <div className="flex items-end">
+                  <label className="flex h-11 w-full cursor-pointer items-center gap-3 rounded-xl border border-slate-200 px-4">
+                    <input
+                      type="checkbox"
+                      name="conversionEnabled"
+                      checked={
+                        form.conversionEnabled
+                      }
+                      onChange={
+                        handleInput
+                      }
+                    />
+
+                    <span className="text-sm font-medium text-slate-700">
+                      Enable unit conversion
+                    </span>
+                  </label>
+                </div>
+              </div>
+
+              {form.conversionEnabled && (
+                <div className="mt-4 rounded-2xl border border-indigo-100 bg-indigo-50/50 p-4">
+                  <div className="grid gap-4 md:grid-cols-3">
+                    <Select
+                      label="Convertible Unit"
+                      name="convertibleUnit"
+                      value={
+                        form.convertibleUnit
+                      }
+                      onChange={
+                        handleInput
+                      }
+                      options={
+                        UNITS.filter(
+                          (unit) =>
+                            unit !==
+                            form.unit
+                        )
+                      }
+                    />
+
+                    <Field
+                      label={`1 ${form.unit} = how many ${form.convertibleUnit}?`}
+                      name="conversionFactor"
+                      type="number"
+                      value={
+                        form.conversionFactor
+                      }
+                      onChange={
+                        handleInput
+                      }
+                    />
+
+                    <Field
+                      label="Conversion Note"
+                      name="conversionDescription"
+                      value={
+                        form.conversionDescription
+                      }
+                      onChange={
+                        handleInput
+                      }
+                      placeholder="e.g. 10 × 10 cut pieces"
+                    />
+                  </div>
+
+                  {Number(
+                    form.conversionFactor
+                  ) > 0 && (
+                    <p className="mt-3 text-sm font-medium text-indigo-700">
+                      1 {form.unit} ={" "}
+                      {
+                        form.conversionFactor
+                      }{" "}
+                      {
+                        form.convertibleUnit
+                      }
+                    </p>
+                  )}
+                </div>
+              )}
+            </Section>
+
+            <Section
+              number="03"
+              title="Size & Physical Specification"
+            >
+              <label className="mb-4 flex cursor-pointer items-center gap-3 rounded-xl border border-slate-200 p-4">
+                <input
+                  type="checkbox"
+                  name="isFrame"
+                  checked={
+                    form.isFrame
+                  }
+                  onChange={
+                    handleInput
+                  }
+                />
+
+                <div>
+                  <p className="text-sm font-semibold text-slate-800">
+                    This is a frame product
+                  </p>
+
+                  <p className="text-xs text-slate-500">
+                    Enable searchable frame size information.
+                  </p>
+                </div>
+              </label>
+
+              {form.isFrame && (
+                <div className="mb-5 rounded-2xl border border-slate-200 bg-slate-50 p-4">
+                  <p className="mb-3 text-sm font-semibold text-slate-800">
+                    Frame Size
+                  </p>
+
+                  <div className="grid gap-4 md:grid-cols-3">
+                    <Field
+                      label="Width"
+                      name="frameWidth"
+                      type="number"
+                      value={
+                        form.frameWidth
+                      }
+                      onChange={
+                        handleInput
+                      }
+                    />
+
+                    <Field
+                      label="Height"
+                      name="frameHeight"
+                      type="number"
+                      value={
+                        form.frameHeight
+                      }
+                      onChange={
+                        handleInput
+                      }
+                    />
+
+                    <Select
+                      label="Unit"
+                      name="frameUnit"
+                      value={
+                        form.frameUnit
+                      }
+                      onChange={
+                        handleInput
+                      }
+                      options={[
+                        "mm",
+                        "cm",
+                        "inch",
+                        "feet",
+                      ]}
+                    />
+                  </div>
+                </div>
+              )}
+
+              <p className="mb-3 text-sm font-semibold text-slate-800">
+                Physical Dimensions
+              </p>
+
+              <div className="grid gap-4 md:grid-cols-4">
+                <Field
+                  label="Length"
+                  name="dimensionLength"
+                  type="number"
+                  value={
+                    form.dimensionLength
+                  }
+                  onChange={
+                    handleInput
+                  }
                 />
 
                 <Field
-                  label="HSN Code"
-                  name="hsnCode"
-                  value={form.hsnCode}
-                  onChange={handleChange}
+                  label="Width"
+                  name="dimensionWidth"
+                  type="number"
+                  value={
+                    form.dimensionWidth
+                  }
+                  onChange={
+                    handleInput
+                  }
+                />
+
+                <Field
+                  label="Height"
+                  name="dimensionHeight"
+                  type="number"
+                  value={
+                    form.dimensionHeight
+                  }
+                  onChange={
+                    handleInput
+                  }
+                />
+
+                <Select
+                  label="Dimension Unit"
+                  name="dimensionUnit"
+                  value={
+                    form.dimensionUnit
+                  }
+                  onChange={
+                    handleInput
+                  }
+                  options={[
+                    "mm",
+                    "cm",
+                    "inch",
+                    "feet",
+                    "meter",
+                  ]}
                 />
               </div>
 
-              <div className="mt-4">
-                <label className="mb-1.5 block text-xs font-medium text-slate-600">
-                  Description
-                </label>
+              <div className="mt-4 grid gap-4 md:grid-cols-2">
+                <Field
+                  label="Weight"
+                  name="weightValue"
+                  type="number"
+                  value={
+                    form.weightValue
+                  }
+                  onChange={
+                    handleInput
+                  }
+                />
 
-                <textarea
-                  name="description"
-                  value={form.description}
-                  onChange={handleChange}
-                  rows={3}
-                  className="w-full resize-none rounded-xl border border-slate-200 px-3 py-2.5 text-sm outline-none focus:border-slate-400"
-                  placeholder="Product description..."
+                <Select
+                  label="Weight Unit"
+                  name="weightUnit"
+                  value={
+                    form.weightUnit
+                  }
+                  onChange={
+                    handleInput
+                  }
+                  options={[
+                    "g",
+                    "kg",
+                    "lb",
+                  ]}
                 />
               </div>
-            </section>
+            </Section>
 
-            {/* Pricing */}
+            <Section
+              number="04"
+              title="Product Media & Documents"
+            >
+              <label className="flex cursor-pointer flex-col items-center justify-center rounded-2xl border-2 border-dashed border-slate-200 px-6 py-8 hover:border-slate-300 hover:bg-slate-50">
+                <Upload className="h-6 w-6 text-slate-400" />
 
-            <section>
-              <h3 className="mb-3 text-sm font-semibold text-slate-900">
-                Pricing
-              </h3>
+                <p className="mt-2 text-sm font-medium text-slate-700">
+                  Upload images, videos or documents
+                </p>
 
-              <div className="grid grid-cols-1 gap-4 md:grid-cols-4">
+                <p className="mt-1 text-xs text-slate-400">
+                  Maximum 3 MB per file and approximately 8 MB total
+                </p>
+
+                <input
+                  type="file"
+                  multiple
+                  className="hidden"
+                  accept="image/*,video/*,.pdf,.doc,.docx,.xls,.xlsx,.txt"
+                  onChange={
+                    handleFiles
+                  }
+                />
+              </label>
+
+              {form.media.length >
+                0 && (
+                <div className="mt-4 grid gap-3 md:grid-cols-2">
+                  {form.media.map(
+                    (
+                      media,
+                      index
+                    ) => (
+                      <div
+                        key={`${media.fileName}-${index}`}
+                        className="flex items-center gap-3 rounded-xl border border-slate-200 p-3"
+                      >
+                        <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-slate-100">
+                          {media.type ===
+                          "image" ? (
+                            <Image className="h-5 w-5 text-slate-500" />
+                          ) : media.type ===
+                            "video" ? (
+                            <Video className="h-5 w-5 text-slate-500" />
+                          ) : (
+                            <FileText className="h-5 w-5 text-slate-500" />
+                          )}
+                        </div>
+
+                        <div className="min-w-0 flex-1">
+                          <p className="truncate text-sm font-medium text-slate-700">
+                            {
+                              media.fileName
+                            }
+                          </p>
+
+                          <p className="text-xs capitalize text-slate-400">
+                            {
+                              media.type
+                            }
+                          </p>
+                        </div>
+
+                        <button
+                          type="button"
+                          onClick={() =>
+                            removeMedia(
+                              index
+                            )
+                          }
+                          className="rounded-lg p-2 text-slate-400 hover:bg-red-50 hover:text-red-600"
+                        >
+                          <Trash2 className="h-4 w-4" />
+                        </button>
+                      </div>
+                    )
+                  )}
+                </div>
+              )}
+            </Section>
+
+            <Section
+              number="05"
+              title="Inventory Settings"
+            >
+              <div className="grid gap-4 md:grid-cols-3">
+                <Field
+                  label="Minimum Stock Level"
+                  name="minimumStockLevel"
+                  type="number"
+                  value={
+                    form.minimumStockLevel
+                  }
+                  onChange={
+                    handleInput
+                  }
+                />
+
+                <Field
+                  label="Storage Location"
+                  name="location"
+                  value={
+                    form.location
+                  }
+                  onChange={
+                    handleInput
+                  }
+                />
+
+                <div>
+                  <label className="mb-1.5 block text-xs font-medium text-slate-600">
+                    Responsible Staff
+                  </label>
+
+                  <select
+                    name="assignedTo"
+                    value={
+                      form.assignedTo
+                    }
+                    onChange={
+                      handleInput
+                    }
+                    className="h-11 w-full rounded-xl border border-slate-200 bg-white px-3 text-sm outline-none focus:border-slate-400"
+                  >
+                    <option value="">
+                      Not assigned
+                    </option>
+
+                    {staff.map((user) => (
+                          <option
+                            key={user.id}
+                            value={user.id}
+                          >
+                            {user.name} — {user.role}
+                            {user.department
+                              ? ` (${user.department})`
+                              : ""}
+                          </option>
+                        ))}
+                  </select>
+                </div>
+              </div>
+
+              {!product && (
+                <div className="mt-4">
+                  <Field
+                    label={`Opening Stock (${form.unit})`}
+                    name="openingStock"
+                    type="number"
+                    value={
+                      form.openingStock
+                    }
+                    onChange={
+                      handleInput
+                    }
+                    placeholder="Optional"
+                  />
+
+                  <p className="mt-1 text-xs text-slate-400">
+                    Opening stock creates the first Inventory transaction.
+                  </p>
+                </div>
+              )}
+            </Section>
+
+            <Section
+              number="06"
+              title="Pricing & Tax"
+            >
+              <div className="grid gap-4 md:grid-cols-5">
                 <Field
                   label="Purchase Price"
                   name="purchasePrice"
                   type="number"
-                  value={form.purchasePrice}
-                  onChange={handleChange}
-                  prefix="₹"
+                  value={
+                    form.purchasePrice
+                  }
+                  onChange={
+                    handleInput
+                  }
                 />
 
                 <Field
                   label="Selling Price"
                   name="sellingPrice"
                   type="number"
-                  value={form.sellingPrice}
-                  onChange={handleChange}
-                  prefix="₹"
+                  value={
+                    form.sellingPrice
+                  }
+                  onChange={
+                    handleInput
+                  }
                 />
 
                 <Field
                   label="Wholesale Price"
                   name="wholesalePrice"
                   type="number"
-                  value={form.wholesalePrice}
-                  onChange={handleChange}
-                  prefix="₹"
+                  value={
+                    form.wholesalePrice
+                  }
+                  onChange={
+                    handleInput
+                  }
                 />
 
                 <Field
                   label="GST %"
                   name="gst"
                   type="number"
-                  value={form.gst}
-                  onChange={handleChange}
+                  value={
+                    form.gst
+                  }
+                  onChange={
+                    handleInput
+                  }
+                />
+
+                <Field
+                  label="HSN Code"
+                  name="hsnCode"
+                  value={
+                    form.hsnCode
+                  }
+                  onChange={
+                    handleInput
+                  }
                 />
               </div>
-            </section>
+            </Section>
 
-            {/* Inventory */}
+            <Section
+              number="07"
+              title="Description & Status"
+            >
+              <textarea
+                name="description"
+                value={
+                  form.description
+                }
+                onChange={
+                  handleInput
+                }
+                rows={4}
+                placeholder="Product description, specification or internal information..."
+                className="w-full resize-none rounded-xl border border-slate-200 p-3 text-sm outline-none focus:border-slate-400"
+              />
 
-            <section>
-              <h3 className="mb-3 text-sm font-semibold text-slate-900">
-                Inventory
-              </h3>
-
-              <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
-                <Field
-                  label="Opening Stock"
-                  name="stock"
-                  type="number"
-                  value={form.stock}
-                  onChange={handleChange}
-                />
-
-                <Field
-                  label="Reorder Level"
-                  name="reorderLevel"
-                  type="number"
-                  value={form.reorderLevel}
-                  onChange={handleChange}
-                />
-
-                <Field
-                  label="Storage Location"
-                  name="location"
-                  value={form.location}
-                  onChange={handleChange}
+              <div className="mt-4 max-w-xs">
+                <Select
+                  label="Status"
+                  name="status"
+                  value={
+                    form.status
+                  }
+                  onChange={
+                    handleInput
+                  }
+                  options={[
+                    "Active",
+                    "Inactive",
+                  ]}
                 />
               </div>
-            </section>
-
-            {/* Status */}
-
-            <section>
-              <h3 className="mb-3 text-sm font-semibold text-slate-900">
-                Status
-              </h3>
-
-              <select
-                name="status"
-                value={form.status}
-                onChange={handleChange}
-                className="w-full rounded-xl border border-slate-200 px-3 py-2.5 text-sm outline-none focus:border-slate-400 md:w-64"
-              >
-                <option value="Active">Active</option>
-                <option value="Inactive">Inactive</option>
-              </select>
-            </section>
+            </Section>
           </div>
         </form>
 
-        <div className="flex items-center justify-end gap-2 border-t border-slate-100 px-6 py-4">
+        <div className="flex justify-end gap-3 border-t border-slate-100 bg-white px-6 py-4">
           <button
             type="button"
             onClick={onClose}
-            className="rounded-xl px-4 py-2.5 text-sm font-medium text-slate-600 hover:bg-slate-100"
+            className="rounded-xl border border-slate-200 px-5 py-2.5 text-sm font-medium text-slate-600"
           >
             Cancel
           </button>
 
           <button
-            onClick={handleSubmit}
-            className="flex items-center gap-2 rounded-xl bg-slate-900 px-5 py-2.5 text-sm font-medium text-white hover:bg-slate-800"
+            type="button"
+            onClick={
+              handleSubmit
+            }
+            className="inline-flex items-center gap-2 rounded-xl bg-slate-900 px-5 py-2.5 text-sm font-semibold text-white hover:bg-slate-800"
           >
-            <Save size={16} />
+            <Save className="h-4 w-4" />
 
-            {product ? "Save Changes" : "Create Product"}
+            {product
+              ? "Save Changes"
+              : "Create Product"}
           </button>
         </div>
       </div>
     </div>
+  );
+}
+
+function Section({
+  number,
+  title,
+  children,
+}) {
+  return (
+    <section>
+      <div className="mb-4 flex items-center gap-3">
+        <div className="flex h-7 w-7 items-center justify-center rounded-lg bg-slate-900 text-[10px] font-bold text-white">
+          {number}
+        </div>
+
+        <h3 className="text-sm font-semibold text-slate-900">
+          {title}
+        </h3>
+      </div>
+
+      {children}
+    </section>
   );
 }
 
@@ -358,43 +1359,52 @@ function Field({
   onChange,
   type = "text",
   required = false,
-  prefix,
+  placeholder = "",
 }) {
   return (
     <div>
       <label className="mb-1.5 block text-xs font-medium text-slate-600">
         {label}
+
         {required && (
-          <span className="ml-1 text-red-500">*</span>
+          <span className="ml-1 text-red-500">
+            *
+          </span>
         )}
       </label>
 
-      <div className="relative">
-        {prefix && (
-          <span className="absolute left-3 top-1/2 -translate-y-1/2 text-sm text-slate-400">
-            {prefix}
-          </span>
-        )}
-
-        <input
-          type={type}
-          name={name}
-          value={value}
-          onChange={onChange}
-          required={required}
-          className={`
-            w-full rounded-xl border border-slate-200
-            py-2.5 text-sm text-slate-900 outline-none
-            transition focus:border-slate-400
-            ${prefix ? "pl-8 pr-3" : "px-3"}
-          `}
-        />
-      </div>
+      <input
+        type={type}
+        name={name}
+        value={value}
+        onChange={
+          onChange
+        }
+        required={
+          required
+        }
+        min={
+          type ===
+          "number"
+            ? 0
+            : undefined
+        }
+        step={
+          type ===
+          "number"
+            ? "any"
+            : undefined
+        }
+        placeholder={
+          placeholder
+        }
+        className="h-11 w-full rounded-xl border border-slate-200 px-3 text-sm outline-none transition focus:border-slate-400 focus:ring-2 focus:ring-slate-100"
+      />
     </div>
   );
 }
 
-function SelectField({
+function Select({
   label,
   name,
   value,
@@ -410,14 +1420,25 @@ function SelectField({
       <select
         name={name}
         value={value}
-        onChange={onChange}
-        className="w-full rounded-xl border border-slate-200 bg-white px-3 py-2.5 text-sm text-slate-700 outline-none focus:border-slate-400"
+        onChange={
+          onChange
+        }
+        className="h-11 w-full rounded-xl border border-slate-200 bg-white px-3 text-sm outline-none focus:border-slate-400"
       >
-        {options.map((option) => (
-          <option key={option} value={option}>
-            {option}
-          </option>
-        ))}
+        {options.map(
+          (option) => (
+            <option
+              key={
+                option
+              }
+              value={
+                option
+              }
+            >
+              {option}
+            </option>
+          )
+        )}
       </select>
     </div>
   );

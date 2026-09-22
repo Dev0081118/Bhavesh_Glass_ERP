@@ -11,7 +11,7 @@ const systemRoutes = require("./routes/systemRoutes");
 
 const app = express();
 
-app.use(express.json({ limit: "8mb" }));
+app.use(express.json({ limit: "12mb" }));
 app.use(
 	cors({
 		origin: (origin, callback) => {

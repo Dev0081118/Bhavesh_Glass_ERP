@@ -255,3 +255,67 @@ export const deleteResource = (
       token,
     }
   );
+  export const moveInventoryStock = (
+  token,
+  inventoryId,
+  data
+) =>
+  request(
+    `/inventory/${inventoryId}/movement`,
+    {
+      method: "POST",
+      token,
+      body: JSON.stringify(
+        data
+      ),
+    }
+  );
+
+export const adjustInventoryStock = (
+  token,
+  inventoryId,
+  data
+) =>
+  request(
+    `/inventory/${inventoryId}/adjust`,
+    {
+      method: "POST",
+      token,
+      body: JSON.stringify(
+        data
+      ),
+    }
+  );
+
+export const getInventoryMovements = (
+  token,
+  inventoryId
+) =>
+  request(
+    `/inventory/${inventoryId}/movements`,
+    {
+      token,
+    }
+  );
+
+export const getNotifications = (
+  token
+) =>
+  request(
+    "/notifications",
+    {
+      token,
+    }
+  );
+
+export const markNotificationRead = (
+  token,
+  notificationId
+) =>
+  request(
+    `/notifications/${notificationId}/read`,
+    {
+      method: "PATCH",
+      token,
+    }
+  );

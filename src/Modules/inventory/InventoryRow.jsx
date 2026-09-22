@@ -1,35 +1,42 @@
 import {
   Eye,
-  MoreHorizontal,
   PackagePlus,
+  SlidersHorizontal,
 } from "lucide-react";
+
 import StockStatus from "./StockStatus";
 
-const InventoryRow = ({
+export default function InventoryRow({
   item,
   status,
   onViewDetails,
   onStockMovement,
   onStockAdjustment,
-}) => {
+}) {
+  const conversion =
+    item.conversions?.[0];
+
+  const equivalent =
+    item.conversionEnabled &&
+    conversion
+      ? `${(
+          item.available *
+          Number(
+            conversion.factor
+          )
+        ).toLocaleString()} ${conversion.unit}`
+      : "—";
+
   return (
-    <tr className="border-b border-slate-100 transition hover:bg-slate-50/70">
-      <td className="px-5 py-4">
-        <div>
-          <p className="text-sm font-semibold text-slate-800">
-            {item.name}
-          </p>
-
-          <p className="mt-0.5 text-xs text-slate-400">
-            {item.id}
-          </p>
-        </div>
-      </td>
-
+    <tr className="border-b border-slate-100 last:border-0 hover:bg-slate-50/60">
       <td className="px-4 py-4">
-        <span className="rounded-lg bg-slate-100 px-2 py-1 font-mono text-xs text-slate-600">
+        <p className="text-sm font-semibold text-slate-800">
+          {item.name}
+        </p>
+
+        <p className="mt-1 font-mono text-xs text-slate-400">
           {item.sku}
-        </span>
+        </p>
       </td>
 
       <td className="px-4 py-4 text-sm text-slate-600">
@@ -37,10 +44,11 @@ const InventoryRow = ({
       </td>
 
       <td className="px-4 py-4 text-sm text-slate-600">
-        {item.size}
+        {item.size ||
+          "—"}
       </td>
 
-      <td className="px-4 py-4 text-right">
+      <td className="px-4 py-4">
         <span className="text-sm font-semibold text-slate-900">
           {item.available.toLocaleString()}
         </span>
@@ -50,16 +58,28 @@ const InventoryRow = ({
         </span>
       </td>
 
-      <td className="px-4 py-4 text-right text-sm text-slate-600">
-        {item.reserved}
+      <td className="px-4 py-4 text-sm text-slate-600">
+        {equivalent}
       </td>
 
-      <td className="px-4 py-4 text-right text-sm text-slate-600">
-        {item.reorderLevel}
+      <td className="px-4 py-4 text-sm text-slate-600">
+        {item.minimumStockLevel}{" "}
+        {item.unit}
       </td>
 
       <td className="px-4 py-4">
-        <StockStatus status={status} />
+        <p className="text-sm text-slate-700">
+          {item.assignedTo?.name ||
+            "Not assigned"}
+        </p>
+      </td>
+
+      <td className="px-4 py-4">
+        <StockStatus
+          status={
+            status
+          }
+        />
       </td>
 
       <td className="px-4 py-4 text-sm text-slate-600">
@@ -67,37 +87,44 @@ const InventoryRow = ({
       </td>
 
       <td className="px-4 py-4">
-        <div className="flex items-center justify-end gap-1">
+        <div className="flex gap-1">
           <button
-            type="button"
-            onClick={() => onViewDetails(item)}
-            title="View details"
-            className="rounded-lg p-2 text-slate-400 transition hover:bg-slate-100 hover:text-slate-800"
+            title="Details"
+            onClick={() =>
+              onViewDetails(
+                item
+              )
+            }
+            className="rounded-lg p-2 text-slate-400 hover:bg-slate-100 hover:text-slate-800"
           >
             <Eye className="h-4 w-4" />
           </button>
 
           <button
-            type="button"
-            onClick={() => onStockMovement(item)}
-            title="Stock movement"
-            className="rounded-lg p-2 text-slate-400 transition hover:bg-emerald-50 hover:text-emerald-600"
+            title="Stock Movement"
+            onClick={() =>
+              onStockMovement(
+                item
+              )
+            }
+            className="rounded-lg p-2 text-slate-400 hover:bg-emerald-50 hover:text-emerald-600"
           >
             <PackagePlus className="h-4 w-4" />
           </button>
 
           <button
-            type="button"
-            onClick={() => onStockAdjustment(item)}
-            title="Adjust stock"
-            className="rounded-lg p-2 text-slate-400 transition hover:bg-amber-50 hover:text-amber-600"
+            title="Stock Adjustment"
+            onClick={() =>
+              onStockAdjustment(
+                item
+              )
+            }
+            className="rounded-lg p-2 text-slate-400 hover:bg-amber-50 hover:text-amber-600"
           >
-            <MoreHorizontal className="h-4 w-4" />
+            <SlidersHorizontal className="h-4 w-4" />
           </button>
         </div>
       </td>
     </tr>
   );
-};
-
-export default InventoryRow;
+}

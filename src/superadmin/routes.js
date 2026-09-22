@@ -7,6 +7,7 @@ import {
   Settings,
   BarChart3,
   BookOpen,
+  ContactRound,
   CreditCard,
   Factory,
   FileText,
@@ -17,6 +18,8 @@ import {
   Truck,
 } from "lucide-react";
 
+import Customer from "../Modules/customer/Customer";
+import WhatsAppAI from "../Modules/whatsapp-ai/WhatsAppAI";
 import StaffManagement from "./staff/StaffManagement";
 import AccessControl from "./access-control/AccessControl";
 import KillSwitch from "./kill-switch/KillSwitch";
@@ -113,6 +116,15 @@ export const superAdminSections = [
     Element: Product,
   },
   {
+  id: "customer",
+  label: "Customer",
+  icon: ContactRound,
+  group: "erp",
+  guard: "module",
+  module: "customer",
+  Element: Customer,
+},
+  {
     id: "purchase",
     label: "Purchase",
     icon: ShoppingCart,
@@ -176,14 +188,14 @@ export const superAdminSections = [
     Element: LR,
   },
   {
-    id: "whatsapp-ai",
-    label: "WhatsApp AI",
-    icon: MessageCircle,
-    group: "erp",
-    guard: "module",
-    module: "whatsapp_ai",
-    Element: ComingSoon,
-  },
+  id: "whatsapp-ai",
+  label: "WhatsApp AI",
+  icon: MessageCircle,
+  group: "erp",
+  guard: "module",
+  module: "whatsapp_ai",
+  Element: WhatsAppAI,
+},
   {
     id: "reports",
     label: "Reports",

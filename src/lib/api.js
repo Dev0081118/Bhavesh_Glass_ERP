@@ -319,3 +319,116 @@ export const markNotificationRead = (
       token,
     }
   );
+  /*
+ * ========================================
+ * CUSTOMERS
+ * ========================================
+ */
+
+export const listCustomers = (
+  token
+) =>
+  request("/customers", {
+    token,
+  });
+
+export const createCustomer = (
+  token,
+  data
+) =>
+  request("/customers", {
+    method: "POST",
+    token,
+
+    body:
+      JSON.stringify(data),
+  });
+
+export const updateCustomer = (
+  token,
+  customerId,
+  data
+) =>
+  request(
+    `/customers/${customerId}`,
+    {
+      method: "PATCH",
+      token,
+
+      body:
+        JSON.stringify(data),
+    }
+  );
+
+export const deleteCustomer = (
+  token,
+  customerId
+) =>
+  request(
+    `/customers/${customerId}`,
+    {
+      method: "DELETE",
+      token,
+    }
+  );
+
+export const getAssignableCustomerStaff =
+  (token) =>
+    request(
+      "/customers/assignable-staff",
+      {
+        token,
+      }
+    );
+
+/*
+ * ========================================
+ * WHATSAPP AI
+ * ========================================
+ */
+
+export const getWhatsAppCustomers =
+  (token) =>
+    request(
+      "/whatsapp/customers",
+      {
+        token,
+      }
+    );
+
+export const getWhatsAppProducts =
+  (token) =>
+    request(
+      "/whatsapp/products",
+      {
+        token,
+      }
+    );
+
+export const getWhatsAppShareHistory =
+  (token) =>
+    request(
+      "/whatsapp/shares",
+      {
+        token,
+      }
+    );
+
+export const shareProductsOnWhatsApp =
+  (
+    token,
+    customerIds,
+    productIds
+  ) =>
+    request(
+      "/whatsapp/share-products",
+      {
+        method: "POST",
+        token,
+
+        body: JSON.stringify({
+          customerIds,
+          productIds,
+        }),
+      }
+    );

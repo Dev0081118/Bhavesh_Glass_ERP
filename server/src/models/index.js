@@ -16,4 +16,7 @@ module.exports = {
   LedgerEntry: require("./LedgerEntry"),
   Activity: require("./Activity"),
   SystemSettings: require("./SystemSettings"),
+
+  Customer: require("./Customer"),
+  WhatsAppShare: require("./WhatsAppShare"),
 };

@@ -4,6 +4,7 @@ const defaultModules = [
   "dashboard",
   "inventory",
   "product",
+  "customer",
   "purchase",
   "production",
   "dispatch",

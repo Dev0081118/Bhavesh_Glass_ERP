@@ -1,5 +1,6 @@
 const express = require("express");
 const cors = require("cors");
+
 const authRoutes = require("./routes/authRoutes");
 const accessRoutes = require("./routes/accessRoutes");
 const resourceRoutes = require("./routes/resourceRoutes");
@@ -9,33 +10,104 @@ const analyticsRoutes = require("./routes/analyticsRoutes");
 const dashboardRoutes = require("./routes/dashboardRoutes");
 const systemRoutes = require("./routes/systemRoutes");
 
-const app = express();
-
-app.use(express.json({ limit: "12mb" }));
-app.use(
-	cors({
-		origin: (origin, callback) => {
-			const isDevelopmentOrigin =
-				!origin || /^https?:\/\/(localhost|127\.0\.0\.1):\d+$/.test(origin);
-			const isConfiguredOrigin = origin === process.env.FRONTEND_URL;
-
-			callback(null, isDevelopmentOrigin || isConfiguredOrigin);
-		},
-	})
+const customerRoutes = require(
+  "./routes/customerRoutes"
 );
 
-app.get("/api/health", (req, res) => {
-	res.json({ status: "ok" });
-});
+const whatsappRoutes = require(
+  "./routes/whatsappRoutes"
+);
 
-app.use("/api/auth", authRoutes);
-app.use("/api/access", accessRoutes);
-app.use("/api/staff", staffRoutes);
-app.use("/api/overview", overviewRoutes);
-app.use("/api/analytics", analyticsRoutes);
-app.use("/api/dashboard", dashboardRoutes);
-app.use("/api/system", systemRoutes);
-app.use("/api", resourceRoutes);
+const app = express();
+
+app.use(
+  express.json({
+    limit: "12mb",
+  })
+);
+
+app.use(
+  cors({
+    origin: (
+      origin,
+      callback
+    ) => {
+      const isDevelopmentOrigin =
+        !origin ||
+        /^https?:\/\/(localhost|127\.0\.0\.1):\d+$/.test(
+          origin
+        );
+
+      const isConfiguredOrigin =
+        origin ===
+        process.env.FRONTEND_URL;
+
+      callback(
+        null,
+        isDevelopmentOrigin ||
+          isConfiguredOrigin
+      );
+    },
+  })
+);
+
+app.get(
+  "/api/health",
+  (req, res) => {
+    res.json({
+      status: "ok",
+    });
+  }
+);
+
+app.use(
+  "/api/auth",
+  authRoutes
+);
+
+app.use(
+  "/api/access",
+  accessRoutes
+);
+
+app.use(
+  "/api/staff",
+  staffRoutes
+);
+
+app.use(
+  "/api/overview",
+  overviewRoutes
+);
+
+app.use(
+  "/api/analytics",
+  analyticsRoutes
+);
+
+app.use(
+  "/api/dashboard",
+  dashboardRoutes
+);
+
+app.use(
+  "/api/system",
+  systemRoutes
+);
+
+app.use(
+  "/api/customers",
+  customerRoutes
+);
+
+app.use(
+  "/api/whatsapp",
+  whatsappRoutes
+);
+
+app.use(
+  "/api",
+  resourceRoutes
+);
 
 module.exports = app;
-

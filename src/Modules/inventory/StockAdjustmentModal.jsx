@@ -8,6 +8,11 @@ import {
   X,
 } from "lucide-react";
 
+import {
+  formatQuantity,
+  toEntryQuantity,
+} from "../../lib/units";
+
 export default function StockAdjustmentModal({
   open,
   inventory,
@@ -216,6 +221,9 @@ export default function StockAdjustmentModal({
             <div>
               <label className="mb-1.5 block text-xs font-medium text-slate-600">
                 Actual Stock Quantity
+                {selected
+                  ? ` (${selected.unit})`
+                  : ""}
               </label>
 
               <input
@@ -235,6 +243,22 @@ export default function StockAdjustmentModal({
                 }
                 className="h-11 w-full rounded-xl border border-slate-200 px-3"
               />
+
+              {selected &&
+                selected.entryUnit &&
+                selected.entryUnit !==
+                  selected.unit && (
+                  <p className="mt-2 text-xs text-slate-500">
+                    Equal to{" "}
+                    {formatQuantity(
+                      toEntryQuantity(
+                        quantity,
+                        selected
+                      )
+                    )}{" "}
+                    {selected.entryUnit}
+                  </p>
+                )}
             </div>
 
             <div>

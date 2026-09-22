@@ -123,6 +123,17 @@ const productSchema = new mongoose.Schema(
       default: [],
     },
 
+    /*
+     * Unit every Inventory / StockTransaction quantity is
+     * counted in. Derived from `unit` + `conversions`, but the
+     * value is persisted so the stock migration stays idempotent.
+     */
+    stockUnit: {
+      type: String,
+      trim: true,
+      default: "",
+    },
+
     isFrame: {
       type: Boolean,
       default: false,

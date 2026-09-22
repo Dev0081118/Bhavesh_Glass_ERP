@@ -12,6 +12,11 @@ import {
 
 import StockStatus from "./StockStatus";
 
+import {
+  formatQuantity,
+  toEntryQuantity,
+} from "../../lib/units";
+
 export default function InventoryDetails({
   open,
   inventory,
@@ -31,15 +36,32 @@ export default function InventoryDetails({
       inventory
     );
 
-  const conversion =
-    inventory.conversions?.[0];
-
-  const equivalent =
+  const showsConversion =
     inventory.conversionEnabled &&
-    conversion
-      ? inventory.available *
-        Number(
-          conversion.factor
+    inventory.entryUnit &&
+    inventory.entryUnit !==
+      inventory.stockUnit;
+
+  /*
+   * Stock + minimum stock are counted in the stock unit
+   * (Piece); the Primary Unit (Sheet) value is the equivalent.
+   */
+  const entryEquivalent =
+    showsConversion
+      ? toEntryQuantity(
+          inventory.available,
+          inventory
+        )
+      : null;
+
+  const minimumEntryEquivalent =
+    showsConversion &&
+    Number(
+      inventory.minimumStockLevel
+    ) > 0
+      ? toEntryQuantity(
+          inventory.minimumStockLevel,
+          inventory
         )
       : null;
 
@@ -97,25 +119,44 @@ export default function InventoryDetails({
           <div className="mt-5 grid grid-cols-2 gap-3">
             <Card
               label="Available Stock"
-              value={`${inventory.available} ${inventory.unit}`}
+              value={`${formatQuantity(
+                inventory.available
+              )} ${inventory.unit}`}
             />
 
             <Card
               label="Reserved"
-              value={`${inventory.reserved} ${inventory.unit}`}
+              value={`${formatQuantity(
+                inventory.reserved
+              )} ${inventory.unit}`}
             />
 
             <Card
-              label="Minimum Level"
-              value={`${inventory.minimumStockLevel} ${inventory.unit}`}
-            />
-
-            <Card
-              label="Convertible Stock"
-              value={
-                equivalent !==
+              label={`Minimum Level${
+                minimumEntryEquivalent !==
                 null
-                  ? `${equivalent.toLocaleString()} ${conversion.unit}`
+                  ? ` (${formatQuantity(
+                      minimumEntryEquivalent
+                    )} ${inventory.entryUnit})`
+                  : ""
+              }`}
+              value={`${formatQuantity(
+                inventory.minimumStockLevel
+              )} ${inventory.unit}`}
+            />
+
+            <Card
+              label={`Equivalent Stock${
+                showsConversion
+                  ? ` (${inventory.entryUnit})`
+                  : ""
+              }`}
+              value={
+                entryEquivalent !==
+                null
+                  ? `${formatQuantity(
+                      entryEquivalent
+                    )} ${inventory.entryUnit}`
                   : "Not enabled"
               }
             />
@@ -227,6 +268,24 @@ export default function InventoryDetails({
                           {movement.reason ||
                             "Stock movement"}
                         </p>
+
+                        {movement.unit &&
+                          movement.unit !==
+                            inventory.unit && (
+                            <p className="mt-0.5 text-xs text-slate-400">
+                              {movement.type ===
+                              "OUT"
+                                ? "−"
+                                : movement.type ===
+                                    "IN"
+                                  ? "+"
+                                  : ""}
+                              {formatQuantity(
+                                movement.primaryQuantity
+                              )}{" "}
+                              {inventory.unit}
+                            </p>
+                          )}
 
                         <div className="mt-1 flex items-center gap-1 text-[11px] text-slate-400">
                           <Clock3 className="h-3 w-3" />

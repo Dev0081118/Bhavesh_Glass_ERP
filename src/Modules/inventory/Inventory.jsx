@@ -19,6 +19,12 @@ import {
   getInventoryMovements,
 } from "../../lib/api";
 
+import {
+  getStockUnit,
+  getStockRate,
+  toEntryQuantity,
+} from "../../lib/units";
+
 const frameSize = (
   product
 ) => {
@@ -35,88 +41,147 @@ const frameSize = (
 
 const normalizeInventory = (
   item
-) => ({
-  ...item,
+) => {
+  const product =
+    item.product &&
+    typeof item.product ===
+      "object"
+      ? item.product
+      : null;
 
-  id:
-    item._id ||
-    item.id,
+  /*
+   * Server sends the stock unit metadata, but the fallback
+   * keeps old cached rows working too.
+   */
+  const unitSource = {
+    ...(product || {}),
 
-  productId:
-    item.product?._id ||
-    item.product,
+    stockUnit:
+      item.stockUnit ||
+      product?.stockUnit ||
+      "",
 
-  name:
-    item.product?.name ||
-    "Unknown product",
+    entryUnit:
+      item.entryUnit ||
+      product?.unit ||
+      "",
 
-  sku:
-    item.product?.sku ||
-    "",
+    stockFactor:
+      Number(item.stockFactor) ||
+      Number(product?.stockFactor) ||
+      0,
+  };
 
-  category:
-    item.product?.category ||
-    "",
+  const stockUnit =
+    getStockUnit(unitSource);
 
-  type:
-    item.product?.type ||
-    "",
+  const entryUnit =
+    unitSource.entryUnit ||
+    stockUnit;
 
-  size:
-    frameSize(
+  const stockFactor =
+    getStockRate(unitSource);
+
+  const available =
+    Number(
+      item.availableQuantity || 0
+    );
+
+  return {
+    ...item,
+
+    id:
+      item._id ||
+      item.id,
+
+    productId:
+      item.product?._id ||
+      item.product,
+
+    name:
+      item.product?.name ||
+      "Unknown product",
+
+    sku:
+      item.product?.sku ||
+      "",
+
+    category:
+      item.product?.category ||
+      "",
+
+    type:
+      item.product?.type ||
+      "",
+
+    size:
+      frameSize(
+        item.product
+      ),
+
+    // Stock is counted in the stock unit (Piece).
+    unit: stockUnit,
+
+    stockUnit,
+
+    entryUnit,
+
+    stockFactor,
+
+    conversions:
       item.product
-    ),
+        ?.conversions ||
+      [],
 
-  unit:
-    item.product?.unit ||
-    "Piece",
+    conversionEnabled:
+      Boolean(
+        item.product
+          ?.conversionEnabled
+      ),
 
-  conversions:
-    item.product
-      ?.conversions ||
-    [],
+    minimumStockLevel:
+      Number(
+        item.minimumStockLevel ??
+          item.product
+            ?.minimumStockLevel ??
+          0
+      ),
 
-  conversionEnabled:
-    Boolean(
+    assignedTo:
       item.product
-        ?.conversionEnabled
+        ?.assignedTo ||
+      null,
+
+    available,
+
+    // Same stock expressed in the Primary Unit (Sheet).
+    availableEntry: toEntryQuantity(
+      available,
+      {
+        ...unitSource,
+        entryUnit,
+        stockFactor,
+      }
     ),
 
-  minimumStockLevel:
-    Number(
-      item.product
-        ?.minimumStockLevel ||
-        0
-    ),
+    reserved:
+      Number(
+        item.reservedQuantity ||
+          0
+      ),
 
-  assignedTo:
-    item.product
-      ?.assignedTo ||
-    null,
+    total:
+      Number(
+        item.quantity ||
+          0
+      ),
 
-  available:
-    Number(
-      item.availableQuantity ||
-        0
-    ),
-
-  reserved:
-    Number(
-      item.reservedQuantity ||
-        0
-    ),
-
-  total:
-    Number(
-      item.quantity ||
-        0
-    ),
-
-  location:
-    item.location ||
-    item.product?.location ||
-    "",
-});
+    location:
+      item.location ||
+      item.product?.location ||
+      "",
+  };
+};
 
 export default function Inventory({
   token,

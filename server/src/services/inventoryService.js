@@ -13,6 +13,125 @@ const roundQuantity = (value) =>
       1000000
   ) / 1000000;
 
+const getConversion = (product) =>
+  (product?.conversions || [])[0] ||
+  null;
+
+/*
+ * Primary Unit  = the unit a product is bought / created in.
+ * Stock Unit    = the unit Inventory counts in.
+ *
+ * When conversion is enabled the convertible unit (1 Sheet =
+ * 50 Piece -> Piece) becomes the stock unit, so stock, minimum
+ * stock level and every movement talk about the same unit.
+ *
+ * The converted unit is only promoted when it is the smaller
+ * one (factor >= 1), otherwise stock would shrink instead.
+ */
+const getStockUnit = (product) => {
+  const entryUnit = String(
+    product?.unit || "Piece"
+  );
+
+  const conversion =
+    getConversion(product);
+
+  const factor = Number(
+    conversion?.factor
+  );
+
+  const convertibleUnit = String(
+    conversion?.unit || ""
+  );
+
+  const canPromote =
+    Boolean(
+      product?.conversionEnabled
+    ) &&
+    Boolean(convertibleUnit) &&
+    Number.isFinite(factor) &&
+    factor >= 1 &&
+    convertibleUnit.toLowerCase() !==
+      entryUnit.toLowerCase();
+
+  return canPromote
+    ? convertibleUnit
+    : entryUnit;
+};
+
+/*
+ * How many stock units 1 Primary Unit is worth.
+ * 1 Sheet = 50 Piece -> 50
+ */
+const getStockFactor = (product) => {
+  const stockUnit = String(
+    getStockUnit(product)
+  ).toLowerCase();
+
+  const entryUnit = String(
+    product?.unit || ""
+  ).toLowerCase();
+
+  if (stockUnit === entryUnit) {
+    return 1;
+  }
+
+  const conversion =
+    (product?.conversions || []).find(
+      (item) =>
+        String(item.unit).toLowerCase() ===
+        stockUnit
+    );
+
+  const factor = Number(
+    conversion?.factor
+  );
+
+  return Number.isFinite(factor) &&
+    factor > 0
+    ? factor
+    : 1;
+};
+
+/*
+ * Rate of a single unit against the Primary Unit.
+ * Primary Unit -> 1
+ * Convertible Unit -> its factor
+ */
+const getUnitFactors = (product) => {
+  const factors = {};
+
+  const entryUnit = String(
+    product?.unit || ""
+  ).toLowerCase();
+
+  if (entryUnit) {
+    factors[entryUnit] = 1;
+  }
+
+  (product?.conversions || []).forEach(
+    (conversion) => {
+      const unit = String(
+        conversion?.unit || ""
+      ).toLowerCase();
+
+      const factor = Number(
+        conversion?.factor
+      );
+
+      if (
+        unit &&
+        Number.isFinite(factor) &&
+        factor > 0
+      ) {
+        factors[unit] = factor;
+      }
+    }
+  );
+
+  return factors;
+};
+
 const getProduct = async (productId) => {
   if (!mongoose.isValidObjectId(productId)) {
     throw new Error(
@@ -99,6 +218,65 @@ const convertToPrimary = (
   );
 };
 
+/*
+ * Converts any quantity the user typed into the unit
+ * Inventory counts in (the stock unit).
+ *
+ * Example:
+ *
+ * Primary Unit = Sheet, 1 Sheet = 50 Piece
+ * Stock Unit   = Piece
+ *
+ * quantity = 10, unit = Sheet
+ * stock quantity = 500 Piece
+ *
+ * quantity = 500, unit = Piece
+ * stock quantity = 500 Piece
+ */
+const convertToStockUnit = (
+  product,
+  quantity,
+  unit
+) => {
+  const value = Number(quantity);
+
+  if (
+    !Number.isFinite(value) ||
+    value < 0
+  ) {
+    throw new Error(
+      "Invalid stock quantity."
+    );
+  }
+
+  const stockUnit =
+    getStockUnit(product);
+
+  const requestedUnit =
+    String(
+      unit || product.unit
+    ).toLowerCase();
+
+  if (
+    requestedUnit ===
+    stockUnit.toLowerCase()
+  ) {
+    return roundQuantity(value);
+  }
+
+  const primaryQuantity =
+    convertToPrimary(
+      product,
+      value,
+      unit || product.unit
+    );
+
+  return roundQuantity(
+    primaryQuantity *
+      getStockFactor(product)
+  );
+};
+
 const ensureInventory = async (
   product,
   location
@@ -148,6 +326,13 @@ const updateLowStockNotification =
         inventory.availableQuantity || 0
       );
 
+    /*
+     * Stock and minimum stock level are both counted in
+     * the product stock unit, so they compare directly.
+     */
+    const stockUnit =
+      getStockUnit(product);
+
     const existing =
       await Notification.findOne({
         user: product.assignedTo,
@@ -160,6 +345,11 @@ const updateLowStockNotification =
       minimum > 0 &&
       available <= minimum
     ) {
+      const message =
+        `${product.name} has reached ` +
+        `${available} ${stockUnit}. ` +
+        `Minimum stock level is ${minimum} ${stockUnit}.`;
+
       if (!existing) {
         await Notification.create({
           user: product.assignedTo,
@@ -170,11 +360,14 @@ const updateLowStockNotification =
 
           title: "Low Stock Alert",
 
-          message:
-            `${product.name} has reached ` +
-            `${available} ${product.unit}. ` +
-            `Minimum stock level is ${minimum} ${product.unit}.`,
+          message,
         });
+      } else if (
+        existing.message !== message
+      ) {
+        existing.message = message;
+
+        await existing.save();
       }
 
       return;
@@ -213,15 +406,15 @@ const applyStockMovement =
     const product =
       await getProduct(productId);
 
-    const primaryQuantity =
-      convertToPrimary(
+    const stockQuantity =
+      convertToStockUnit(
         product,
         quantity,
         unit || product.unit
       );
 
     if (
-      primaryQuantity <= 0
+      stockQuantity <= 0
     ) {
       throw new Error(
         "Quantity must be greater than zero."
@@ -240,21 +433,24 @@ const applyStockMovement =
           0
       );
 
+    const stockUnit =
+      getStockUnit(product);
+
     if (
       type === "OUT" &&
-      primaryQuantity >
+      stockQuantity >
         previousStock
     ) {
       throw new Error(
         `Insufficient stock for ${product.name}. ` +
-          `Available stock is ${previousStock} ${product.unit}.`
+          `Available stock is ${previousStock} ${stockUnit}.`
       );
     }
 
     const difference =
       type === "OUT"
-        ? -primaryQuantity
-        : primaryQuantity;
+        ? -stockQuantity
+        : stockQuantity;
 
     const newStock =
       roundQuantity(
@@ -307,7 +503,9 @@ const applyStockMovement =
             unit ||
             product.unit,
 
-          primaryQuantity,
+          // Quantity converted into the product stock unit.
+          primaryQuantity:
+            stockQuantity,
 
           previousStock,
 
@@ -380,6 +578,13 @@ const adjustStock =
         inventory.product
       );
 
+    /*
+     * Physical counting is done in the unit the inventory
+     * screen shows, which is the product stock unit.
+     */
+    const stockUnit =
+      getStockUnit(product);
+
     const newStock =
       roundQuantity(
         Number(quantity)
@@ -441,7 +646,7 @@ const adjustStock =
                 previousStock
             ),
 
-          unit: product.unit,
+          unit: stockUnit,
 
           primaryQuantity:
             newStock -
@@ -475,10 +680,97 @@ const adjustStock =
     };
   };
 
+/*
+ * Keeps stored stock meaningful when a product edit changes
+ * the stock unit (for example unit conversion is switched
+ * off, so stock goes from Piece back to Sheet).
+ *
+ * Stored numbers are reinterpreted through the Primary Unit:
+ * oldValue / oldRate * newRate
+ *
+ * Stock history is left untouched, because every transaction
+ * keeps the quantity + unit exactly as it was entered.
+ */
+const syncInventoryStockUnit =
+  async (
+    previousProduct,
+    nextProduct
+  ) => {
+    const previousUnit =
+      getStockUnit(previousProduct);
+
+    const nextUnit =
+      getStockUnit(nextProduct);
+
+    if (
+      previousUnit.toLowerCase() ===
+      nextUnit.toLowerCase()
+    ) {
+      return null;
+    }
+
+    const inventory =
+      await Inventory.findOne({
+        product: nextProduct._id,
+      });
+
+    if (
+      !inventory ||
+      Number(inventory.quantity || 0) <= 0
+    ) {
+      return null;
+    }
+
+    const previousRate =
+      getUnitFactors(previousProduct)[
+        previousUnit.toLowerCase()
+      ] || 1;
+
+    const nextRate =
+      getUnitFactors(nextProduct)[
+        nextUnit.toLowerCase()
+      ] || 1;
+
+    const convert = (value) =>
+      roundQuantity(
+        (Number(value || 0) /
+          previousRate) *
+          nextRate
+      );
+
+    inventory.availableQuantity =
+      convert(
+        inventory.availableQuantity
+      );
+
+    inventory.reservedQuantity =
+      convert(
+        inventory.reservedQuantity
+      );
+
+    inventory.quantity = convert(
+      inventory.quantity
+    );
+
+    await inventory.save();
+
+    return {
+      previousUnit,
+      nextUnit,
+    };
+  };
+
 module.exports = {
   getProduct,
+  getConversion,
+  getStockUnit,
+  getStockFactor,
+  getUnitFactors,
   convertToPrimary,
+  convertToStockUnit,
+  syncInventoryStockUnit,
   ensureInventory,
+  updateLowStockNotification,
   applyStockMovement,
   adjustStock,
 };

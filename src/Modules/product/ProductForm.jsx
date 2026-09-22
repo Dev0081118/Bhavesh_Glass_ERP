@@ -632,6 +632,33 @@ export default function ProductForm({
     onSave(payload);
   };
 
+  /*
+   * Stock is counted in the converted unit whenever the
+   * conversion factor is >= 1 (1 Sheet = 50 Piece -> Piece),
+   * which is also the unit the minimum stock level uses.
+   */
+  const minimumStockUnit =
+    form.conversionEnabled &&
+    form.convertibleUnit &&
+    Number(form.conversionFactor) >= 1
+      ? form.convertibleUnit
+      : form.unit;
+
+  const minimumStockHint =
+    minimumStockUnit !== form.unit &&
+    Number(form.minimumStockLevel) > 0
+      ? `= ${Number(
+          (
+            Number(
+              form.minimumStockLevel
+            ) /
+            Number(
+              form.conversionFactor
+            )
+          ).toFixed(3)
+        ).toLocaleString("en-IN")} ${form.unit}`
+      : "";
+
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/50 p-4 backdrop-blur-sm">
       <div className="flex max-h-[94vh] w-full max-w-5xl flex-col overflow-hidden rounded-3xl bg-white shadow-2xl">
@@ -860,6 +887,35 @@ export default function ProductForm({
                       }
                     </p>
                   )}
+
+                  {Number(
+                    form.conversionFactor
+                  ) > 0 &&
+                    (Number(
+                      form.conversionFactor
+                    ) >= 1 ? (
+                      <p className="mt-1 text-xs text-indigo-600">
+                        Stock, stock movements and the minimum stock
+                        level are all counted in{" "}
+                        {
+                          form.convertibleUnit
+                        }
+                        . 10 {form.unit} is stored as{" "}
+                        {Number(
+                          form.conversionFactor
+                        ) * 10}{" "}
+                        {
+                          form.convertibleUnit
+                        }
+                        .
+                      </p>
+                    ) : (
+                      <p className="mt-1 text-xs text-amber-600">
+                        The converted unit is larger than{" "}
+                        {form.unit}, so stock stays counted in{" "}
+                        {form.unit}.
+                      </p>
+                    ))}
                 </div>
               )}
             </Section>
@@ -1120,17 +1176,27 @@ export default function ProductForm({
               title="Inventory Settings"
             >
               <div className="grid gap-4 md:grid-cols-3">
-                <Field
-                  label="Minimum Stock Level"
-                  name="minimumStockLevel"
-                  type="number"
-                  value={
-                    form.minimumStockLevel
-                  }
-                  onChange={
-                    handleInput
-                  }
-                />
+                <div>
+                  <Field
+                    label={`Minimum Stock Level (${minimumStockUnit})`}
+                    name="minimumStockLevel"
+                    type="number"
+                    value={
+                      form.minimumStockLevel
+                    }
+                    onChange={
+                      handleInput
+                    }
+                  />
+
+                  {minimumStockHint && (
+                    <p className="mt-1 text-xs text-slate-400">
+                      {
+                        minimumStockHint
+                      }
+                    </p>
+                  )}
+                </div>
 
                 <Field
                   label="Storage Location"
@@ -1193,7 +1259,23 @@ export default function ProductForm({
                   />
 
                   <p className="mt-1 text-xs text-slate-400">
-                    Opening stock creates the first Inventory transaction.
+                    Opening stock creates the first Inventory
+                    transaction.
+                    {minimumStockUnit !==
+                      form.unit &&
+                      Number(
+                        form.openingStock
+                      ) > 0 &&
+                      ` Stored as ${Number(
+                        (
+                          Number(
+                            form.openingStock
+                          ) *
+                          Number(
+                            form.conversionFactor
+                          )
+                        ).toFixed(3)
+                      ).toLocaleString("en-IN")} ${minimumStockUnit}.`}
                   </p>
                 </div>
               )}

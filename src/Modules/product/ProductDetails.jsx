@@ -11,6 +11,11 @@ import {
 
 import ProductStatus from "./ProductStatus";
 
+import {
+  getStockUnit,
+  toEntryQuantity,
+} from "../../lib/units";
+
 export default function ProductDetails({
   product,
   onClose,
@@ -21,6 +26,19 @@ export default function ProductDetails({
 
   const conversion =
     product.conversions?.[0];
+
+  const stockUnit =
+    getStockUnit(product);
+
+  const minimumEntryEquivalent =
+    Number(
+      product.minimumStockLevel || 0
+    ) > 0
+      ? toEntryQuantity(
+          product.minimumStockLevel,
+          product
+        )
+      : null;
 
   return (
     <div className="fixed inset-0 z-50 flex justify-end bg-slate-950/40 backdrop-blur-sm">
@@ -121,6 +139,11 @@ export default function ProductDetails({
               }
             />
 
+            <Info
+              label="Stock Unit"
+              value={stockUnit}
+            />
+
             {conversion?.description && (
               <Info
                 label="Note"
@@ -176,7 +199,18 @@ export default function ProductDetails({
           <Section title="Inventory Settings">
             <Info
               label="Minimum Stock Level"
-              value={`${product.minimumStockLevel || 0} ${product.unit}`}
+              value={`${product.minimumStockLevel || 0} ${stockUnit}${
+                minimumEntryEquivalent !==
+                null
+                  ? ` (${Number(
+                      minimumEntryEquivalent.toFixed(
+                        3
+                      )
+                    ).toLocaleString(
+                      "en-IN"
+                    )} ${product.unit})`
+                  : ""
+              }`}
             />
 
             <Info

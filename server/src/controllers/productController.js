@@ -9,6 +9,8 @@ const {
 const {
   ensureInventory,
   applyStockMovement,
+  getStockUnit,
+  syncInventoryStockUnit,
 } = require("../services/inventoryService");
 
 const assignedPopulate = {
@@ -56,6 +58,13 @@ const createProduct = async (
       openingStock = 0,
       ...payload
     } = req.body;
+
+    /*
+     * Stock is counted in the converted unit whenever unit
+     * conversion is enabled (1 Sheet = 50 Piece -> Piece).
+     */
+    payload.stockUnit =
+      getStockUnit(payload);
 
     console.log(
       "PRODUCT CREATE PAYLOAD:",
@@ -162,6 +171,36 @@ const updateProduct = async (
     delete payload.stock;
     delete payload.openingStock;
 
+    const previous =
+      await Product.findById(
+        req.params.id
+      );
+
+    if (!previous) {
+      return res
+        .status(404)
+        .json({
+          message:
+            "Product not found.",
+        });
+    }
+
+    /*
+     * stockUnit is always derived, never trusted from the
+     * client, so the product and its inventory cannot drift.
+     */
+    payload.stockUnit = getStockUnit({
+      unit: payload.unit ?? previous.unit,
+
+      conversionEnabled:
+        payload.conversionEnabled ??
+        previous.conversionEnabled,
+
+      conversions:
+        payload.conversions ??
+        previous.conversions,
+    });
+
     const product =
       await Product.findByIdAndUpdate(
         req.params.id,
@@ -174,13 +213,21 @@ const updateProduct = async (
         assignedPopulate
       );
 
-    if (!product) {
-      return res
-        .status(404)
-        .json({
-          message:
-            "Product not found.",
-        });
+    /*
+     * Turning conversion on/off changes the unit stock is
+     * counted in, so stored quantities are reinterpreted.
+     */
+    const converted =
+      await syncInventoryStockUnit(
+        previous,
+        product
+      );
+
+    if (converted) {
+      console.log(
+        `STOCK UNIT CHANGED for ${product.sku}: ` +
+          `${converted.previousUnit} -> ${converted.nextUnit}`
+      );
     }
 
     return res.json({

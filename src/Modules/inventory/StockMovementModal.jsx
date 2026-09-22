@@ -9,6 +9,11 @@ import {
   X,
 } from "lucide-react";
 
+import {
+  formatQuantity,
+  toStockQuantity,
+} from "../../lib/units";
+
 export default function StockMovementModal({
   open,
   inventory,
@@ -75,35 +80,40 @@ export default function StockMovementModal({
         inventoryId
     );
 
+  /*
+   * The stock unit (Piece) is what Inventory counts in, and the
+   * entry / convertible units stay available for data entry.
+   */
   const availableUnits = [
     selected?.unit,
+
+    selected?.entryUnit,
 
     ...(selected?.conversions ||
       []).map(
       (item) =>
         item.unit
     ),
-  ].filter(Boolean);
+  ].filter(
+    (currentUnit, index, list) =>
+      Boolean(currentUnit) &&
+      list.indexOf(currentUnit) ===
+        index
+  );
 
-  const equivalentPrimary =
-    selected &&
-    unit !== selected.unit
-      ? Number(quantity || 0) /
-        Number(
-          selected.conversions?.find(
-            (conversion) =>
-              conversion.unit ===
-              unit
-          )?.factor || 1
+  const equivalentStock =
+    selected
+      ? toStockQuantity(
+          quantity,
+          selected,
+          unit
         )
-      : Number(
-          quantity || 0
-        );
+      : Number(quantity || 0);
 
   const invalidOut =
     type === "out" &&
     selected &&
-    equivalentPrimary >
+    equivalentStock >
       selected.available;
 
   const submit = (
@@ -274,7 +284,7 @@ export default function StockMovementModal({
             <div className="grid grid-cols-2 gap-3">
               <div>
                 <label className="mb-1.5 block text-xs font-medium text-slate-600">
-                  Quantity
+                  Quantity{unit ? ` (${unit})` : ""}
                 </label>
 
                 <input
@@ -342,9 +352,9 @@ export default function StockMovementModal({
                 selected.unit &&
               quantity && (
                 <p className="rounded-lg bg-indigo-50 px-3 py-2 text-xs text-indigo-700">
-                  Equivalent stock movement:{" "}
-                  {equivalentPrimary.toFixed(
-                    4
+                  Stock movement will be recorded as{" "}
+                  {formatQuantity(
+                    equivalentStock
                   )}{" "}
                   {selected.unit}
                 </p>

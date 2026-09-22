@@ -58,7 +58,7 @@ const stockTransactionSchema =
         required: true,
       },
 
-      // Quantity converted into primary Product.unit.
+      // Quantity converted into the product stock unit.
       primaryQuantity: {
         type: Number,
         required: true,

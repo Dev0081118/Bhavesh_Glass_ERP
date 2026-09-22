@@ -6,6 +6,8 @@ import {
 
 import ProductStatus from "./ProductStatus";
 
+import { getStockUnit } from "../../lib/units";
+
 export default function ProductRow({
   product,
   onView,
@@ -19,6 +21,13 @@ export default function ProductRow({
     product.frameSize?.height
       ? `${product.frameSize.width} × ${product.frameSize.height} ${product.frameSize.unit}`
       : "—";
+
+  /*
+   * Minimum stock is counted in the stock unit, so a product
+   * with 1 Sheet = 50 Piece alerts on 10 Piece, not 10 Sheet.
+   */
+  const stockUnit =
+    getStockUnit(product);
 
   const conversion =
     product.conversionEnabled &&
@@ -71,7 +80,7 @@ export default function ProductRow({
       <td className="px-4 py-4 text-sm text-slate-700">
         {product.minimumStockLevel ??
           0}{" "}
-        {product.unit}
+        {stockUnit}
       </td>
 
       <td className="px-4 py-4">

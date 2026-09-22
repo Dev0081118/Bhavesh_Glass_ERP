@@ -6,6 +6,11 @@ import {
 
 import StockStatus from "./StockStatus";
 
+import {
+  formatQuantity,
+  toEntryQuantity,
+} from "../../lib/units";
+
 export default function InventoryRow({
   item,
   status,
@@ -13,19 +18,28 @@ export default function InventoryRow({
   onStockMovement,
   onStockAdjustment,
 }) {
-  const conversion =
-    item.conversions?.[0];
+  /*
+   * Stock is counted in the stock unit (Piece). The equivalent
+   * column shows the same stock in the Primary Unit (Sheet).
+   */
+  const showsConversion =
+    item.conversionEnabled &&
+    item.entryUnit &&
+    item.entryUnit !== item.stockUnit;
 
   const equivalent =
-    item.conversionEnabled &&
-    conversion
-      ? `${(
-          item.available *
-          Number(
-            conversion.factor
-          )
-        ).toLocaleString()} ${conversion.unit}`
+    showsConversion
+      ? `${formatQuantity(item.availableEntry)} ${item.entryUnit}`
       : "—";
+
+  const minimumEquivalent =
+    showsConversion &&
+    Number(item.minimumStockLevel) > 0
+      ? toEntryQuantity(
+          item.minimumStockLevel,
+          item
+        )
+      : null;
 
   return (
     <tr className="border-b border-slate-100 last:border-0 hover:bg-slate-50/60">
@@ -50,7 +64,9 @@ export default function InventoryRow({
 
       <td className="px-4 py-4">
         <span className="text-sm font-semibold text-slate-900">
-          {item.available.toLocaleString()}
+          {formatQuantity(
+            item.available
+          )}
         </span>
 
         <span className="ml-1 text-xs text-slate-400">
@@ -63,8 +79,21 @@ export default function InventoryRow({
       </td>
 
       <td className="px-4 py-4 text-sm text-slate-600">
-        {item.minimumStockLevel}{" "}
+        {formatQuantity(
+          item.minimumStockLevel
+        )}{" "}
         {item.unit}
+
+        {minimumEquivalent !==
+          null && (
+          <span className="ml-1 text-xs text-slate-400">
+            (
+            {formatQuantity(
+              minimumEquivalent
+            )}{" "}
+            {item.entryUnit})
+          </span>
+        )}
       </td>
 
       <td className="px-4 py-4">

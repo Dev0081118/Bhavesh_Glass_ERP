@@ -275,27 +275,28 @@ const queryPurchases = (range) =>
 const queryLowStock = () =>
   Inventory.aggregate([
     {
+      $lookup: {
+        from: "products",
+        localField: "product",
+        foreignField: "_id",
+        as: "product",
+      },
+    },
+    { $unwind: { path: "$product", preserveNullAndEmptyArrays: true } },
+    {
+      /*
+       * Stock and minimumStockLevel are both counted in the
+       * product stock unit, so they compare directly.
+       */
       $match: {
-        reorderLevel: { $gt: 0 },
-        $expr: { $lte: ["$availableQuantity", "$reorderLevel"] },
+        "product.minimumStockLevel": { $gt: 0 },
+        $expr: { $lte: ["$availableQuantity", "$product.minimumStockLevel"] },
       },
     },
     {
       $facet: {
         summary: [{ $count: "count" }],
-        items: [
-          { $sort: { availableQuantity: 1 } },
-          { $limit: 5 },
-          {
-            $lookup: {
-              from: "products",
-              localField: "product",
-              foreignField: "_id",
-              as: "product",
-            },
-          },
-          { $unwind: { path: "$product", preserveNullAndEmptyArrays: true } },
-        ],
+        items: [{ $sort: { availableQuantity: 1 } }, { $limit: 5 }],
       },
     },
   ]);
@@ -305,8 +306,7 @@ const queryCatalogLowStock = () =>
     {
       $match: {
         status: "Active",
-        reorderLevel: { $gt: 0 },
-        $expr: { $lte: ["$stock", "$reorderLevel"] },
+        minimumStockLevel: { $gt: 0 },
       },
     },
     {
@@ -321,7 +321,7 @@ const queryCatalogLowStock = () =>
     {
       $facet: {
         summary: [{ $count: "count" }],
-        items: [{ $sort: { stock: 1 } }, { $limit: 5 }],
+        items: [{ $sort: { name: 1 } }, { $limit: 5 }],
       },
     },
   ]);
@@ -778,16 +778,18 @@ const getDashboardSummary = async (req, res) => {
       ...facetRows(lowStockFacet, "items").map((row) => ({
         id: row._id,
         label: row.product?.name || "Unknown product",
-        detail: `${round(row.availableQuantity)} ${row.product?.unit || "units"} at ${
+        detail: `${round(row.availableQuantity)} ${
+          row.product?.stockUnit || row.product?.unit || "units"
+        } at ${
           row.location || "warehouse"
-        } · reorder at ${round(row.reorderLevel)}`,
+        } · minimum ${round(row.product?.minimumStockLevel)}`,
         value: null,
       })),
       ...facetRows(catalogLowStockFacet, "items").map((row) => ({
         id: row._id,
         label: row.name,
-        detail: `${round(row.stock)} ${row.unit || "units"} in catalogue · reorder at ${round(
-          row.reorderLevel
+        detail: `0 ${row.stockUnit || row.unit || "units"} in catalogue · minimum ${round(
+          row.minimumStockLevel
         )}`,
         value: null,
       })),

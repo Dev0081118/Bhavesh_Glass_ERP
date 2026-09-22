@@ -8,6 +8,8 @@ const {
 const {
   applyStockMovement,
   adjustStock,
+  getStockUnit,
+  getStockFactor,
 } = require(
   "../services/inventoryService"
 );
@@ -23,6 +25,58 @@ const populateProduct = {
   },
 };
 
+/*
+ * Inventory quantities are always counted in the product
+ * stock unit (the converted unit when conversion is enabled).
+ * The client renders from these fields instead of re-deriving
+ * the conversion on its own.
+ */
+const describeStockUnits = (inventory) => {
+  const row =
+    typeof inventory?.toObject ===
+    "function"
+      ? inventory.toObject()
+      : {
+          ...inventory,
+        };
+
+  const product =
+    row.product &&
+    typeof row.product === "object"
+      ? row.product
+      : null;
+
+  const stockUnit = product
+    ? getStockUnit(product)
+    : "";
+
+  return {
+    ...row,
+
+    stockUnit,
+
+    entryUnit:
+      product?.unit ||
+      stockUnit,
+
+    stockFactor: product
+      ? getStockFactor(product)
+      : 1,
+
+    conversionFactor:
+      Number(
+        product?.conversions?.[0]
+          ?.factor
+      ) || 0,
+
+    minimumStockLevel:
+      Number(
+        product?.minimumStockLevel ||
+          0
+      ),
+  };
+};
+
 const listInventory =
   async (req, res) => {
     try {
@@ -36,7 +90,9 @@ const listInventory =
           });
 
       return res.json({
-        data: inventory,
+        data: inventory.map(
+          describeStockUnits
+        ),
       });
     } catch (error) {
       return res
@@ -81,7 +137,9 @@ const getInventory =
       }
 
       return res.json({
-        data: inventory,
+        data: describeStockUnits(
+          inventory
+        ),
       });
     } catch (error) {
       return res
@@ -155,7 +213,9 @@ const moveStock =
         );
 
       return res.json({
-        data: updated,
+        data: describeStockUnits(
+          updated
+        ),
         transaction:
           result.transaction,
       });
@@ -195,7 +255,9 @@ const adjustInventory =
         );
 
       return res.json({
-        data: updated,
+        data: describeStockUnits(
+          updated
+        ),
       });
     } catch (error) {
       return res

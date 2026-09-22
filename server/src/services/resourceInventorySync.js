@@ -1,7 +1,8 @@
 const {
   applyStockMovement,
-  convertToPrimary,
+  convertToStockUnit,
   getProduct,
+  getStockUnit,
 } = require(
   "./inventoryService"
 );
@@ -366,8 +367,8 @@ const syncSaleBill =
           productId
         );
 
-      const currentPrimary =
-        convertToPrimary(
+      const currentStock =
+        convertToStockUnit(
           product,
           Number(item.quantity),
           item.unit
@@ -378,10 +379,10 @@ const syncSaleBill =
           String(productId)
         );
 
-      const oldPrimary =
+      const oldStock =
         previousActive &&
         old
-          ? convertToPrimary(
+          ? convertToStockUnit(
               product,
               Number(
                 old.quantity
@@ -391,8 +392,11 @@ const syncSaleBill =
           : 0;
 
       const difference =
-        currentPrimary -
-        oldPrimary;
+        currentStock -
+        oldStock;
+
+      const stockUnit =
+        getStockUnit(product);
 
       if (
         difference > 0
@@ -408,8 +412,7 @@ const syncSaleBill =
             quantity:
               difference,
 
-            unit:
-              product.unit,
+            unit: stockUnit,
 
             referenceType:
               "SaleBill",
@@ -443,8 +446,7 @@ const syncSaleBill =
                 difference
               ),
 
-            unit:
-              product.unit,
+            unit: stockUnit,
 
             referenceType:
               "SaleBill",

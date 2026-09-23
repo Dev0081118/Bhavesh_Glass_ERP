@@ -1,5 +1,10 @@
 const {
+  Product,
+} = require("../models");
+
+const {
   applyStockMovement,
+  applyStockMovementsSafely,
   convertToStockUnit,
   getProduct,
   getStockUnit,
@@ -7,20 +12,38 @@ const {
   "./inventoryService"
 );
 
+const idOf = (
+  value
+) =>
+  String(
+    value?._id ||
+      value ||
+      ""
+  );
+
 const isPurchaseReceived =
   (status) =>
     [
       "Partially Received",
       "Received",
-    ].includes(status);
+    ].includes(
+      status
+    );
 
-const isProductionActive =
+/*
+ * On Hold still represents material/output that was
+ * already physically consumed/created.
+ */
+const isProductionStockActive =
   (status) =>
     [
       "In Progress",
+      "On Hold",
       "Partially Completed",
       "Completed",
-    ].includes(status);
+    ].includes(
+      status
+    );
 
 const isSaleConfirmed =
   (status) =>
@@ -28,24 +51,85 @@ const isSaleConfirmed =
       "Confirmed",
       "Partially Paid",
       "Paid",
-    ].includes(status);
-
-const mapByProduct = (
-  items = []
-) => {
-  const map = new Map();
-
-  items.forEach((item) => {
-    const id = String(
-      item.product?._id ||
-        item.product
+    ].includes(
+      status
     );
 
-    map.set(id, item);
-  });
+const mapByProduct =
+  (
+    items = []
+  ) => {
+    const map =
+      new Map();
 
-  return map;
-};
+    items.forEach(
+      (item) => {
+        const id =
+          idOf(
+            item.product
+          );
+
+        if (id) {
+          map.set(
+            id,
+            item
+          );
+        }
+      }
+    );
+
+    return map;
+  };
+
+const syncPurchaseAssignments =
+  async (
+    current
+  ) => {
+    if (
+      !current.assignedTo
+    ) {
+      return;
+    }
+
+    const productIds =
+      (
+        current.items ||
+        []
+      ).map(
+        (item) =>
+          item.product?._id ||
+          item.product
+      );
+
+    if (
+      productIds.length ===
+      0
+    ) {
+      return;
+    }
+
+    /*
+     * Only fill missing responsibility.
+     * Never overwrite an existing Product.assignedTo.
+     */
+    await Product.updateMany(
+      {
+        _id: {
+          $in:
+            productIds,
+        },
+
+        assignedTo:
+          null,
+      },
+      {
+        $set: {
+          assignedTo:
+            current.assignedTo,
+        },
+      }
+    );
+  };
 
 const syncPurchase =
   async (
@@ -53,48 +137,73 @@ const syncPurchase =
     current,
     previous
   ) => {
-    if (
-      !isPurchaseReceived(
+    await syncPurchaseAssignments(
+      current
+    );
+
+    const currentActive =
+      isPurchaseReceived(
         current.status
-      )
-    ) {
-      return;
-    }
+      );
+
+    const previousActive =
+      previous
+        ? isPurchaseReceived(
+            previous.status
+          )
+        : false;
+
+    const currentItems =
+      mapByProduct(
+        current.items ||
+          []
+      );
 
     const oldItems =
       mapByProduct(
-        previous?.items || []
+        previous?.items ||
+          []
       );
 
-    for (
-      const item of
-      current.items
-    ) {
-      const productId =
-        item.product?._id ||
-        item.product;
+    const productIds =
+      new Set([
+        ...currentItems.keys(),
+        ...oldItems.keys(),
+      ]);
 
-      const old =
-        oldItems.get(
-          String(productId)
+    const movements = [];
+
+    for (
+      const productId of
+      productIds
+    ) {
+      const currentItem =
+        currentItems.get(
+          productId
         );
 
-      const oldReceived =
-        previous &&
-        isPurchaseReceived(
-          previous.status
-        )
+      const oldItem =
+        oldItems.get(
+          productId
+        );
+
+      const currentReceived =
+        currentActive &&
+        currentItem
           ? Number(
-              old?.receivedQuantity ||
+              currentItem.receivedQuantity ||
                 0
             )
           : 0;
 
-      const currentReceived =
-        Number(
-          item.receivedQuantity ||
-            0
-        );
+      const oldReceived =
+        previousActive &&
+        oldItem
+          ? Number(
+              oldItem.receivedQuantity ||
+                0
+            )
+          : 0;
 
       const difference =
         currentReceived -
@@ -103,33 +212,77 @@ const syncPurchase =
       if (
         difference > 0
       ) {
-        await applyStockMovement(
-          {
-            productId,
+        movements.push({
+          productId,
 
-            type: "IN",
+          type:
+            "IN",
 
-            source:
-              "PURCHASE",
+          source:
+            "PURCHASE",
 
-            quantity:
-              difference,
+          quantity:
+            difference,
 
-            referenceType:
-              "Purchase",
+          unit:
+            currentItem.unit,
 
-            referenceId:
-              current._id,
+          referenceType:
+            "Purchase",
 
-            reason:
-              "Purchase quantity received",
+          referenceId:
+            current._id,
 
-            createdBy:
-              req.user?._id,
-          }
-        );
+          reason:
+            "Purchase quantity received",
+
+          createdBy:
+            req.user?._id,
+        });
+      }
+
+      if (
+        difference < 0
+      ) {
+        movements.push({
+          productId,
+
+          type:
+            "OUT",
+
+          source:
+            "PURCHASE_REVERSAL",
+
+          quantity:
+            Math.abs(
+              difference
+            ),
+
+          unit:
+            oldItem?.unit ||
+            currentItem?.unit,
+
+          referenceType:
+            "Purchase",
+
+          referenceId:
+            current._id,
+
+          reason:
+            current.status ===
+            "Cancelled"
+              ? "Purchase cancelled - received stock reversed"
+              : "Purchase received quantity reduced",
+
+          createdBy:
+            req.user?._id,
+        });
       }
     }
+
+    await applyStockMovementsSafely(
+      movements
+    );
   };
 
 const syncProduction =
@@ -138,13 +291,23 @@ const syncProduction =
     current,
     previous
   ) => {
-    if (
-      !isProductionActive(
+    const currentActive =
+      isProductionStockActive(
         current.status
-      )
-    ) {
-      return;
-    }
+      );
+
+    const previousActive =
+      previous
+        ? isProductionStockActive(
+            previous.status
+          )
+        : false;
+
+    const currentMaterials =
+      mapByProduct(
+        current.rawMaterials ||
+          []
+      );
 
     const oldMaterials =
       mapByProduct(
@@ -152,111 +315,205 @@ const syncProduction =
           []
       );
 
-    for (
-      const material of
-      current.rawMaterials || []
-    ) {
-      const productId =
-        material.product?._id ||
-        material.product;
+    const materialIds =
+      new Set([
+        ...currentMaterials.keys(),
+        ...oldMaterials.keys(),
+      ]);
 
-      const old =
-        oldMaterials.get(
-          String(productId)
+    const movements = [];
+
+    /*
+     * Raw material consumption.
+     */
+    for (
+      const productId of
+      materialIds
+    ) {
+      const currentMaterial =
+        currentMaterials.get(
+          productId
         );
 
-      const oldConsumed =
-        previous &&
-        isProductionActive(
-          previous.status
-        )
+      const oldMaterial =
+        oldMaterials.get(
+          productId
+        );
+
+      const currentConsumed =
+        currentActive &&
+        currentMaterial
           ? Number(
-              old?.consumedQuantity ||
+              currentMaterial.consumedQuantity ||
                 0
             )
           : 0;
 
-      const consumed =
-        Number(
-          material.consumedQuantity ||
-            0
-        );
+      const oldConsumed =
+        previousActive &&
+        oldMaterial
+          ? Number(
+              oldMaterial.consumedQuantity ||
+                0
+            )
+          : 0;
 
       const difference =
-        consumed -
+        currentConsumed -
         oldConsumed;
 
       if (
         difference > 0
       ) {
-        await applyStockMovement(
-          {
-            productId,
+        movements.push({
+          productId,
 
-            type: "OUT",
+          type:
+            "OUT",
 
-            source:
-              "PRODUCTION_CONSUMPTION",
+          source:
+            "PRODUCTION_CONSUMPTION",
 
-            quantity:
-              difference,
+          quantity:
+            difference,
 
-            unit:
-              material.unit,
+          unit:
+            currentMaterial.unit,
 
-            referenceType:
-              "Production",
+          referenceType:
+            "Production",
 
-            referenceId:
-              current._id,
+          referenceId:
+            current._id,
 
-            reason:
-              "Raw material consumed in production",
+          reason:
+            "Raw material consumed in production",
 
-            createdBy:
-              req.user?._id,
-          }
-        );
+          createdBy:
+            req.user?._id,
+        });
+      }
+
+      if (
+        difference < 0
+      ) {
+        movements.push({
+          productId,
+
+          type:
+            "IN",
+
+          source:
+            "PRODUCTION_CONSUMPTION_REVERSAL",
+
+          quantity:
+            Math.abs(
+              difference
+            ),
+
+          unit:
+            oldMaterial?.unit ||
+            currentMaterial?.unit,
+
+          referenceType:
+            "Production",
+
+          referenceId:
+            current._id,
+
+          reason:
+            current.status ===
+            "Cancelled"
+              ? "Production cancelled - raw material returned"
+              : "Production material consumption reduced",
+
+          createdBy:
+            req.user?._id,
+        });
       }
     }
 
-    const oldCompleted =
-      previous &&
-      isProductionActive(
-        previous.status
-      )
+    /*
+     * Finished-product output.
+     */
+    const currentOutputProduct =
+      idOf(
+        current.product
+      );
+
+    const oldOutputProduct =
+      idOf(
+        previous?.product
+      );
+
+    const currentCompleted =
+      currentActive
         ? Number(
-            previous.completedQuantity ||
+            current.completedQuantity ||
               0
           )
         : 0;
 
-    const completed =
-      Number(
-        current.completedQuantity ||
-          0
-      );
-
-    const outputDifference =
-      completed -
-      oldCompleted;
+    const oldCompleted =
+      previousActive
+        ? Number(
+            previous?.completedQuantity ||
+              0
+          )
+        : 0;
 
     if (
-      outputDifference > 0
+      previous &&
+      oldOutputProduct &&
+      oldOutputProduct !==
+        currentOutputProduct &&
+      oldCompleted > 0
     ) {
-      await applyStockMovement(
-        {
-          productId:
-            current.product?._id ||
-            current.product,
+      movements.push({
+        productId:
+          oldOutputProduct,
 
-          type: "IN",
+        type:
+          "OUT",
+
+        source:
+          "PRODUCTION_OUTPUT_REVERSAL",
+
+        quantity:
+          oldCompleted,
+
+        referenceType:
+          "Production",
+
+        referenceId:
+          current._id,
+
+        reason:
+          "Previous production output reversed",
+
+        createdBy:
+          req.user?._id,
+
+        location:
+          previous.location,
+      });
+
+      if (
+        currentCompleted >
+        0
+      ) {
+        movements.push({
+          productId:
+            currentOutputProduct,
+
+          type:
+            "IN",
 
           source:
             "PRODUCTION_OUTPUT",
 
           quantity:
-            outputDifference,
+            currentCompleted,
 
           referenceType:
             "Production",
@@ -272,11 +529,95 @@ const syncProduction =
 
           location:
             current.location,
-        }
-      );
+        });
+      }
+    } else {
+      const difference =
+        currentCompleted -
+        oldCompleted;
+
+      if (
+        difference > 0
+      ) {
+        movements.push({
+          productId:
+            currentOutputProduct,
+
+          type:
+            "IN",
+
+          source:
+            "PRODUCTION_OUTPUT",
+
+          quantity:
+            difference,
+
+          referenceType:
+            "Production",
+
+          referenceId:
+            current._id,
+
+          reason:
+            "Finished product added from production",
+
+          createdBy:
+            req.user?._id,
+
+          location:
+            current.location,
+        });
+      }
+
+      if (
+        difference < 0
+      ) {
+        movements.push({
+          productId:
+            oldOutputProduct ||
+            currentOutputProduct,
+
+          type:
+            "OUT",
+
+          source:
+            "PRODUCTION_OUTPUT_REVERSAL",
+
+          quantity:
+            Math.abs(
+              difference
+            ),
+
+          referenceType:
+            "Production",
+
+          referenceId:
+            current._id,
+
+          reason:
+            current.status ===
+            "Cancelled"
+              ? "Production cancelled - finished output reversed"
+              : "Completed production quantity reduced",
+
+          createdBy:
+            req.user?._id,
+
+          location:
+            previous?.location ||
+            current.location,
+        });
+      }
     }
+
+    await applyStockMovementsSafely(
+      movements
+    );
   };
 
+/*
+ * Existing Sale Bill synchronization.
+ */
 const syncSaleBill =
   async (
     req,
@@ -297,13 +638,10 @@ const syncSaleBill =
 
     const oldItems =
       mapByProduct(
-        previous?.items || []
+        previous?.items ||
+          []
       );
 
-    /*
-     * Bill cancelled after previously
-     * affecting stock.
-     */
     if (
       previousActive &&
       current.status ===
@@ -313,38 +651,37 @@ const syncSaleBill =
         const oldItem of
         previous.items
       ) {
-        await applyStockMovement(
-          {
-            productId:
-              oldItem.product?._id ||
-              oldItem.product,
+        await applyStockMovement({
+          productId:
+            oldItem.product?._id ||
+            oldItem.product,
 
-            type: "IN",
+          type:
+            "IN",
 
-            source:
-              "SALE_REVERSAL",
+          source:
+            "SALE_REVERSAL",
 
-            quantity:
-              Number(
-                oldItem.quantity
-              ),
+          quantity:
+            Number(
+              oldItem.quantity
+            ),
 
-            unit:
-              oldItem.unit,
+          unit:
+            oldItem.unit,
 
-            referenceType:
-              "SaleBill",
+          referenceType:
+            "SaleBill",
 
-            referenceId:
-              current._id,
+          referenceId:
+            current._id,
 
-            reason:
-              "Sale bill cancelled",
+          reason:
+            "Sale bill cancelled",
 
-            createdBy:
-              req.user?._id,
-          }
-        );
+          createdBy:
+            req.user?._id,
+        });
       }
 
       return;
@@ -370,13 +707,17 @@ const syncSaleBill =
       const currentStock =
         convertToStockUnit(
           product,
-          Number(item.quantity),
+          Number(
+            item.quantity
+          ),
           item.unit
         );
 
       const old =
         oldItems.get(
-          String(productId)
+          String(
+            productId
+          )
         );
 
       const oldStock =
@@ -396,71 +737,74 @@ const syncSaleBill =
         oldStock;
 
       const stockUnit =
-        getStockUnit(product);
+        getStockUnit(
+          product
+        );
 
       if (
         difference > 0
       ) {
-        await applyStockMovement(
-          {
-            productId,
+        await applyStockMovement({
+          productId,
 
-            type: "OUT",
+          type:
+            "OUT",
 
-            source: "SALE",
+          source:
+            "SALE",
 
-            quantity:
-              difference,
+          quantity:
+            difference,
 
-            unit: stockUnit,
+          unit:
+            stockUnit,
 
-            referenceType:
-              "SaleBill",
+          referenceType:
+            "SaleBill",
 
-            referenceId:
-              current._id,
+          referenceId:
+            current._id,
 
-            reason:
-              "Sale bill confirmed",
+          reason:
+            "Sale bill confirmed",
 
-            createdBy:
-              req.user?._id,
-          }
-        );
+          createdBy:
+            req.user?._id,
+        });
       }
 
       if (
         difference < 0
       ) {
-        await applyStockMovement(
-          {
-            productId,
+        await applyStockMovement({
+          productId,
 
-            type: "IN",
+          type:
+            "IN",
 
-            source:
-              "SALE_REVERSAL",
+          source:
+            "SALE_REVERSAL",
 
-            quantity:
-              Math.abs(
-                difference
-              ),
+          quantity:
+            Math.abs(
+              difference
+            ),
 
-            unit: stockUnit,
+          unit:
+            stockUnit,
 
-            referenceType:
-              "SaleBill",
+          referenceType:
+            "SaleBill",
 
-            referenceId:
-              current._id,
+          referenceId:
+            current._id,
 
-            reason:
-              "Sale quantity reduced",
+          reason:
+            "Sale quantity reduced",
 
-            createdBy:
-              req.user?._id,
-          }
-        );
+          createdBy:
+            req.user?._id,
+        });
       }
     }
   };

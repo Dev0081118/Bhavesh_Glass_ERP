@@ -1,11 +1,17 @@
-import { useMemo, useState } from "react";
 import {
-  CalendarDays,
+  useMemo,
+  useState,
+} from "react";
+
+import {
   Plus,
+  ShoppingCart,
   Trash2,
   X,
-  ShoppingCart,
 } from "lucide-react";
+
+import SearchCreateCombobox from "../../components/SearchCreateCombobox";
+import QuickSupplierModal from "./QuickSupplierModal";
 
 const statuses = [
   "Draft",
@@ -16,706 +22,1314 @@ const statuses = [
   "Cancelled",
 ];
 
-function formatCurrency(value) {
-  return new Intl.NumberFormat("en-IN", {
-    style: "currency",
-    currency: "INR",
-    maximumFractionDigits: 2,
-  }).format(value);
-}
+const paymentStatuses = [
+  "Pending",
+  "Partially Paid",
+  "Paid",
+];
+
+const createItem =
+  () => ({
+    productId:
+      "",
+
+    quantity:
+      1,
+
+    unit:
+      "",
+
+    rate:
+      0,
+
+    receivedQuantity:
+      0,
+
+    notes:
+      "",
+  });
+
+const dateInput =
+  (value) =>
+    value
+      ? String(
+          value
+        ).slice(
+          0,
+          10
+        )
+      : "";
 
 export default function PurchaseForm({
   purchase,
-  products,
-  suppliers,
+
+  products = [],
+
+  suppliers = [],
+
+  staff = [],
+
+  loading = false,
+
+  onCreateSupplier,
+
   onClose,
+
   onSave,
 }) {
-  const isEditing = Boolean(purchase);
+  const [
+    submitting,
+    setSubmitting,
+  ] = useState(false);
 
-  const [supplierId, setSupplierId] = useState(
-    purchase?.supplierId || ""
-  );
+  const [
+    supplierModal,
+    setSupplierModal,
+  ] = useState(false);
 
-  const [purchaseDate, setPurchaseDate] = useState(
-    purchase?.purchaseDate ||
-      new Date().toISOString().split("T")[0]
-  );
+  const [
+    supplierSeedName,
+    setSupplierSeedName,
+  ] = useState("");
 
-  const [status, setStatus] = useState(
-    purchase?.status || "Draft"
-  );
+  const [
+    supplierSaving,
+    setSupplierSaving,
+  ] = useState(false);
 
-  const [gst, setGst] = useState(
-    purchase?.gst !== undefined ? purchase.gst : 18
-  );
+  const [
+    error,
+    setError,
+  ] = useState("");
 
-  const [discount, setDiscount] = useState(
-    purchase?.discount !== undefined ? purchase.discount : 0
-  );
+  const [
+    form,
+    setForm,
+  ] = useState({
+    supplierId:
+      purchase?.supplierId ||
+      purchase?.supplier
+        ?._id ||
+      "",
 
-  const [notes, setNotes] = useState(
-    purchase?.notes || ""
-  );
+    supplierInvoiceNumber:
+      purchase
+        ?.supplierInvoiceNumber ||
+      "",
 
-  const [paymentStatus, setPaymentStatus] = useState(
-    purchase?.paymentStatus || "Pending"
-  );
+    assignedToId:
+      purchase
+        ?.assignedToId ||
+      purchase?.assignedTo
+        ?._id ||
+      "",
 
-  const [items, setItems] = useState(
-    purchase?.items?.length
-      ? purchase.items.map((item) => ({ ...item }))
-      : [
-          {
-            productId: "",
-            quantity: 1,
-            rate: 0,
-            receivedQuantity: 0,
-          },
-        ]
-  );
+    purchaseDate:
+      dateInput(
+        purchase
+          ?.purchaseDate
+      ) ||
+      new Date()
+        .toISOString()
+        .slice(
+          0,
+          10
+        ),
 
-  const selectedSupplier = suppliers.find(
-    (supplier) => supplier.id === supplierId
-  );
+    expectedDeliveryDate:
+      dateInput(
+        purchase
+          ?.expectedDeliveryDate
+      ),
 
-  const totals = useMemo(() => {
-    const subtotal = items.reduce(
-      (sum, item) =>
-        sum +
-        Number(item.quantity || 0) *
-          Number(item.rate || 0),
-      0
-    );
+    actualReceiptDate:
+      dateInput(
+        purchase
+          ?.actualReceiptDate
+      ),
 
-    const discountAmount = Math.min(
-      Number(discount || 0),
-      subtotal
-    );
+    status:
+      purchase?.status ||
+      "Draft",
 
-    const taxableAmount = Math.max(
-      subtotal - discountAmount,
-      0
-    );
+    paymentStatus:
+      purchase
+        ?.paymentStatus ||
+      "Pending",
 
-    const tax =
-      (taxableAmount * Number(gst || 0)) / 100;
+    gst:
+      purchase?.gst ??
+      18,
 
-    const grandTotal = taxableAmount + tax;
+    discount:
+      purchase
+        ?.discount ??
+      0,
 
-    return {
-      subtotal,
-      discountAmount,
-      taxableAmount,
-      tax,
-      grandTotal,
+    notes:
+      purchase?.notes ||
+      "",
+
+    items:
+      purchase?.items
+        ?.length
+        ? purchase.items.map(
+            (item) => ({
+              productId:
+                item.productId ||
+                item.product
+                  ?._id ||
+                item.product,
+
+              quantity:
+                Number(
+                  item.quantity ||
+                    0
+                ),
+
+              unit:
+                item.unit ||
+                item.productData
+                  ?.unit ||
+                "",
+
+              rate:
+                Number(
+                  item.rate ||
+                    0
+                ),
+
+              receivedQuantity:
+                Number(
+                  item.receivedQuantity ||
+                    0
+                ),
+
+              notes:
+                item.notes ||
+                "",
+            })
+          )
+        : [
+            createItem(),
+          ],
+  });
+
+  const setField =
+    (
+      field,
+      value
+    ) =>
+      setForm(
+        (current) => ({
+          ...current,
+
+          [field]:
+            value,
+        })
+      );
+
+  const updateItem =
+    (
+      index,
+      field,
+      value
+    ) => {
+      setForm(
+        (current) => ({
+          ...current,
+
+          items:
+            current.items.map(
+              (
+                item,
+                itemIndex
+              ) => {
+                if (
+                  itemIndex !==
+                  index
+                ) {
+                  return item;
+                }
+
+                if (
+                  field ===
+                  "productId"
+                ) {
+                  const product =
+                    products.find(
+                      (entry) =>
+                        String(
+                          entry.id ||
+                            entry._id
+                        ) ===
+                        String(
+                          value
+                        )
+                    );
+
+                  return {
+                    ...item,
+
+                    productId:
+                      value,
+
+                    unit:
+                      product
+                        ?.unit ||
+                      "",
+
+                    rate:
+                      Number(
+                        product
+                          ?.purchasePrice ||
+                          0
+                      ),
+                  };
+                }
+
+                return {
+                  ...item,
+
+                  [field]:
+                    value,
+                };
+              }
+            ),
+        })
+      );
     };
-  }, [items, discount, gst]);
 
-  const updateItem = (index, field, value) => {
-    setItems((current) =>
-      current.map((item, itemIndex) => {
-        if (itemIndex !== index) return item;
-
-        if (field === "productId") {
-          const product = products.find(
-            (product) => product.id === value
+  const totals =
+    useMemo(
+      () => {
+        const subtotal =
+          form.items.reduce(
+            (
+              total,
+              item
+            ) =>
+              total +
+              Number(
+                item.quantity ||
+                  0
+              ) *
+                Number(
+                  item.rate ||
+                    0
+                ),
+            0
           );
 
-          return {
-            ...item,
-            productId: value,
-            rate: product?.purchasePrice || 0,
-          };
-        }
+        const discount =
+          Math.min(
+            Math.max(
+              Number(
+                form.discount ||
+                  0
+              ),
+              0
+            ),
+            subtotal
+          );
+
+        const taxable =
+          Math.max(
+            subtotal -
+              discount,
+            0
+          );
+
+        const tax =
+          taxable *
+          (
+            Number(
+              form.gst ||
+                0
+            ) /
+            100
+          );
 
         return {
-          ...item,
-          [field]: value,
+          subtotal,
+          discount,
+          taxable,
+          tax,
+
+          total:
+            taxable +
+            tax,
         };
-      })
-    );
-  };
-
-  const addItem = () => {
-    setItems((current) => [
-      ...current,
-      {
-        productId: "",
-        quantity: 1,
-        rate: 0,
-        receivedQuantity: 0,
       },
-    ]);
-  };
-
-  const removeItem = (index) => {
-    if (items.length === 1) return;
-
-    setItems((current) =>
-      current.filter((_, itemIndex) => itemIndex !== index)
-    );
-  };
-
-  const handleSubmit = (e) => {
-    e.preventDefault();
-
-    if (!supplierId) {
-      alert("Please select a supplier.");
-      return;
-    }
-
-    const validItems = items.filter(
-      (item) =>
-        item.productId &&
-        Number(item.quantity) > 0 &&
-        Number(item.rate) >= 0
+      [
+        form,
+      ]
     );
 
-    if (validItems.length === 0) {
-      alert("Please add at least one valid product.");
-      return;
-    }
+  const submit =
+    async (
+      event
+    ) => {
+      event.preventDefault();
 
-    const supplier = suppliers.find(
-      (item) => item.id === supplierId
-    );
+      setError("");
 
-    const purchaseData = {
-      supplierId,
-      supplierName: supplier?.name || "",
-      purchaseDate,
-      status,
-      items: validItems.map((item) => ({
-        productId: item.productId,
-        quantity: Number(item.quantity),
-        rate: Number(item.rate),
-        receivedQuantity: Math.min(
-          Number(item.receivedQuantity || 0),
-          Number(item.quantity)
-        ),
-      })),
-      gst: Number(gst || 0),
-      discount: Number(discount || 0),
-      notes,
-      paymentStatus,
+      if (
+        !form.supplierId
+      ) {
+        setError(
+          "Please select or create a supplier."
+        );
+
+        return;
+      }
+
+      const validItems =
+        form.items.filter(
+          (item) =>
+            item.productId
+        );
+
+      if (
+        validItems.length ===
+        0
+      ) {
+        setError(
+          "Add at least one product."
+        );
+
+        return;
+      }
+
+      const ids =
+        validItems.map(
+          (item) =>
+            String(
+              item.productId
+            )
+        );
+
+      if (
+        new Set(
+          ids
+        ).size !==
+        ids.length
+      ) {
+        setError(
+          "The same product cannot be added twice."
+        );
+
+        return;
+      }
+
+      try {
+        setSubmitting(
+          true
+        );
+
+        await onSave({
+          ...form,
+
+          supplierId:
+            form.supplierId,
+
+          assignedToId:
+            form.assignedToId ||
+            null,
+
+          gst:
+            Number(
+              form.gst ||
+                0
+            ),
+
+          discount:
+            Number(
+              form.discount ||
+                0
+            ),
+
+          items:
+            validItems.map(
+              (item) => ({
+                productId:
+                  item.productId,
+
+                quantity:
+                  Number(
+                    item.quantity ||
+                      0
+                  ),
+
+                unit:
+                  item.unit,
+
+                rate:
+                  Number(
+                    item.rate ||
+                      0
+                  ),
+
+                receivedQuantity:
+                  Number(
+                    item.receivedQuantity ||
+                      0
+                  ),
+
+                notes:
+                  item.notes ||
+                  "",
+              })
+            ),
+        });
+      } catch (
+        saveError
+      ) {
+        setError(
+          saveError.message
+        );
+      } finally {
+        setSubmitting(
+          false
+        );
+      }
     };
 
-    onSave(purchaseData);
-  };
-
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/40 p-4 backdrop-blur-sm">
-      <div className="flex max-h-[94vh] w-full max-w-5xl flex-col overflow-hidden rounded-3xl bg-white shadow-2xl">
-        {/* Header */}
-        <div className="flex items-center justify-between border-b border-slate-100 px-6 py-5">
-          <div className="flex items-center gap-3">
-            <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-slate-900 text-white">
-              <ShoppingCart size={18} />
+    <>
+      <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/40 p-4 backdrop-blur-sm">
+        <div className="flex max-h-[94vh] w-full max-w-6xl flex-col overflow-hidden rounded-3xl bg-white shadow-2xl">
+          <div className="flex items-center justify-between border-b border-slate-100 px-6 py-5">
+            <div className="flex items-center gap-3">
+              <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-slate-900 text-white">
+                <ShoppingCart
+                  size={18}
+                />
+              </div>
+
+              <div>
+                <h2 className="text-lg font-semibold text-slate-900">
+                  {purchase
+                    ? "Edit Purchase"
+                    : "New Purchase"}
+                </h2>
+
+                <p className="mt-1 text-xs text-slate-400">
+                  Purchase products from suppliers and receive them into inventory.
+                </p>
+              </div>
             </div>
 
-            <div>
-              <h2 className="text-lg font-semibold text-slate-900">
-                {isEditing
-                  ? `Edit Purchase ${purchase.id}`
-                  : "Create New Purchase"}
-              </h2>
-
-              <p className="text-xs text-slate-400">
-                Add supplier, products and purchase information.
-              </p>
-            </div>
+            <button
+              type="button"
+              onClick={
+                onClose
+              }
+              className="rounded-xl p-2 text-slate-400 hover:bg-slate-100"
+            >
+              <X
+                size={19}
+              />
+            </button>
           </div>
 
-          <button
-            onClick={onClose}
-            type="button"
-            className="rounded-xl p-2 text-slate-400 transition hover:bg-slate-100 hover:text-slate-900"
+          <form
+            onSubmit={
+              submit
+            }
+            className="flex-1 overflow-y-auto"
           >
-            <X size={19} />
-          </button>
-        </div>
-
-        <form
-          onSubmit={handleSubmit}
-          className="flex min-h-0 flex-1 flex-col"
-        >
-          <div className="flex-1 overflow-y-auto px-6 py-6">
-            <div className="space-y-6">
-              {/* Purchase Information */}
-              <section>
-                <div className="mb-4">
-                  <h3 className="text-sm font-semibold text-slate-900">
-                    Purchase Information
-                  </h3>
-
-                  <p className="mt-0.5 text-xs text-slate-400">
-                    Basic information about this purchase.
-                  </p>
+            <div className="space-y-8 p-6">
+              {error && (
+                <div className="rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
+                  {error}
                 </div>
+              )}
 
-                <div className="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-4">
-                  <div>
-                    <label className="mb-1.5 block text-xs font-medium text-slate-600">
-                      Supplier *
-                    </label>
+              <section>
+                <h3 className="mb-4 text-sm font-semibold text-slate-900">
+                  Purchase Information
+                </h3>
 
-                    <select
-                      value={supplierId}
-                      onChange={(e) =>
-                        setSupplierId(e.target.value)
+                <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-4">
+                  <Field label="Supplier *">
+                    <SearchCreateCombobox
+                      value={
+                        form.supplierId
                       }
-                      className="w-full rounded-xl border border-slate-200 bg-white px-3 py-2.5 text-sm text-slate-700 outline-none focus:border-slate-400"
+
+                      items={
+                        suppliers
+                      }
+
+                      placeholder="Type supplier name..."
+
+                      emptyText="No supplier found."
+
+                      createLabel="Create supplier"
+
+                      onChange={(
+                        id
+                      ) =>
+                        setField(
+                          "supplierId",
+                          id
+                        )
+                      }
+
+                      onCreate={(
+                        name
+                      ) => {
+                        setSupplierSeedName(
+                          name
+                        );
+
+                        setSupplierModal(
+                          true
+                        );
+                      }}
+
+                      renderSecondary={(
+                        supplier
+                      ) => (
+                        <>
+                          {supplier.phone ||
+                            "No phone"}
+                          {supplier.gstNumber
+                            ? ` • GST: ${supplier.gstNumber}`
+                            : ""}
+                        </>
+                      )}
+                    />
+                  </Field>
+
+                  <Field label="Responsible Person">
+                    <select
+                      value={
+                        form.assignedToId
+                      }
+                      onChange={(
+                        event
+                      ) =>
+                        setField(
+                          "assignedToId",
+                          event.target.value
+                        )
+                      }
+                      className={
+                        inputClass
+                      }
                     >
                       <option value="">
-                        Select supplier
+                        Not assigned
                       </option>
 
-                      {suppliers.map((supplier) => (
-                        <option
-                          key={supplier.id}
-                          value={supplier.id}
-                        >
-                          {supplier.name}
-                        </option>
-                      ))}
+                      {staff.map(
+                        (person) => (
+                          <option
+                            key={
+                              person.id ||
+                              person._id
+                            }
+                            value={
+                              person.id ||
+                              person._id
+                            }
+                          >
+                            {person.name}
+                            {" — "}
+                            {person.role}
+                            {person.department
+                              ? ` • ${person.department}`
+                              : ""}
+                          </option>
+                        )
+                      )}
                     </select>
-                  </div>
+                  </Field>
 
-                  <div>
-                    <label className="mb-1.5 block text-xs font-medium text-slate-600">
-                      Purchase Date *
-                    </label>
-
-                    <div className="relative">
-                      <CalendarDays
-                        size={15}
-                        className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400"
-                      />
-
-                      <input
-                        type="date"
-                        value={purchaseDate}
-                        onChange={(e) =>
-                          setPurchaseDate(e.target.value)
-                        }
-                        className="w-full rounded-xl border border-slate-200 bg-white py-2.5 pl-9 pr-3 text-sm text-slate-700 outline-none focus:border-slate-400"
-                      />
-                    </div>
-                  </div>
-
-                  <div>
-                    <label className="mb-1.5 block text-xs font-medium text-slate-600">
-                      Status
-                    </label>
-
-                    <select
-                      value={status}
-                      onChange={(e) =>
-                        setStatus(e.target.value)
+                  <Field label="Supplier Invoice">
+                    <input
+                      value={
+                        form.supplierInvoiceNumber
                       }
-                      className="w-full rounded-xl border border-slate-200 bg-white px-3 py-2.5 text-sm text-slate-700 outline-none focus:border-slate-400"
-                    >
-                      {statuses.map((item) => (
-                        <option key={item} value={item}>
-                          {item}
-                        </option>
-                      ))}
-                    </select>
-                  </div>
-
-                  <div>
-                    <label className="mb-1.5 block text-xs font-medium text-slate-600">
-                      Payment Status
-                    </label>
-
-                    <select
-                      value={paymentStatus}
-                      onChange={(e) =>
-                        setPaymentStatus(e.target.value)
+                      onChange={(
+                        event
+                      ) =>
+                        setField(
+                          "supplierInvoiceNumber",
+                          event.target.value
+                        )
                       }
-                      className="w-full rounded-xl border border-slate-200 bg-white px-3 py-2.5 text-sm text-slate-700 outline-none focus:border-slate-400"
+                      className={
+                        inputClass
+                      }
+                    />
+                  </Field>
+
+                  <Field label="Status">
+                    <select
+                      value={
+                        form.status
+                      }
+                      onChange={(
+                        event
+                      ) =>
+                        setField(
+                          "status",
+                          event.target.value
+                        )
+                      }
+                      className={
+                        inputClass
+                      }
                     >
-                      <option value="Pending">Pending</option>
-                      <option value="Partial">Partial</option>
-                      <option value="Paid">Paid</option>
+                      {statuses.map(
+                        (status) => (
+                          <option
+                            key={
+                              status
+                            }
+                          >
+                            {status}
+                          </option>
+                        )
+                      )}
                     </select>
-                  </div>
+                  </Field>
+
+                  <Field label="Purchase Date">
+                    <input
+                      type="date"
+                      required
+                      value={
+                        form.purchaseDate
+                      }
+                      onChange={(
+                        event
+                      ) =>
+                        setField(
+                          "purchaseDate",
+                          event.target.value
+                        )
+                      }
+                      className={
+                        inputClass
+                      }
+                    />
+                  </Field>
+
+                  <Field label="Expected Delivery">
+                    <input
+                      type="date"
+                      value={
+                        form.expectedDeliveryDate
+                      }
+                      onChange={(
+                        event
+                      ) =>
+                        setField(
+                          "expectedDeliveryDate",
+                          event.target.value
+                        )
+                      }
+                      className={
+                        inputClass
+                      }
+                    />
+                  </Field>
+
+                  <Field label="Actual Receipt">
+                    <input
+                      type="date"
+                      value={
+                        form.actualReceiptDate
+                      }
+                      onChange={(
+                        event
+                      ) =>
+                        setField(
+                          "actualReceiptDate",
+                          event.target.value
+                        )
+                      }
+                      className={
+                        inputClass
+                      }
+                    />
+                  </Field>
+
+                  <Field label="Payment Status">
+                    <select
+                      value={
+                        form.paymentStatus
+                      }
+                      onChange={(
+                        event
+                      ) =>
+                        setField(
+                          "paymentStatus",
+                          event.target.value
+                        )
+                      }
+                      className={
+                        inputClass
+                      }
+                    >
+                      {paymentStatuses.map(
+                        (status) => (
+                          <option
+                            key={
+                              status
+                            }
+                          >
+                            {status}
+                          </option>
+                        )
+                      )}
+                    </select>
+                  </Field>
                 </div>
-
-                {selectedSupplier && (
-                  <div className="mt-4 rounded-xl border border-slate-100 bg-slate-50 p-4">
-                    <div className="grid grid-cols-1 gap-3 text-xs sm:grid-cols-3">
-                      <div>
-                        <p className="text-slate-400">
-                          Contact Person
-                        </p>
-                        <p className="mt-1 font-medium text-slate-700">
-                          {selectedSupplier.contactPerson}
-                        </p>
-                      </div>
-
-                      <div>
-                        <p className="text-slate-400">
-                          Phone
-                        </p>
-                        <p className="mt-1 font-medium text-slate-700">
-                          {selectedSupplier.phone}
-                        </p>
-                      </div>
-
-                      <div>
-                        <p className="text-slate-400">
-                          Address
-                        </p>
-                        <p className="mt-1 font-medium text-slate-700">
-                          {selectedSupplier.address}
-                        </p>
-                      </div>
-                    </div>
-                  </div>
-                )}
               </section>
 
-              {/* Products */}
               <section>
                 <div className="mb-4 flex items-center justify-between">
                   <div>
                     <h3 className="text-sm font-semibold text-slate-900">
-                      Purchase Items
+                      Products
                     </h3>
 
-                    <p className="mt-0.5 text-xs text-slate-400">
-                      Add one or more products to this purchase.
+                    <p className="mt-1 text-xs text-slate-400">
+                      Received quantity is the quantity that affects inventory.
                     </p>
                   </div>
 
                   <button
                     type="button"
-                    onClick={addItem}
-                    className="inline-flex items-center gap-1.5 rounded-xl bg-slate-900 px-3 py-2 text-xs font-medium text-white transition hover:bg-slate-800"
+                    onClick={() =>
+                      setForm(
+                        (current) => ({
+                          ...current,
+
+                          items: [
+                            ...current.items,
+                            createItem(),
+                          ],
+                        })
+                      )
+                    }
+                    className="flex items-center gap-2 rounded-xl border border-slate-200 px-3 py-2 text-xs font-medium"
                   >
-                    <Plus size={14} />
+                    <Plus
+                      size={15}
+                    />
                     Add Product
                   </button>
                 </div>
 
-                <div className="overflow-hidden rounded-2xl border border-slate-200">
-                  <div className="overflow-x-auto">
-                    <table className="w-full min-w-[900px]">
-                      <thead>
-                        <tr className="bg-slate-50">
-                          <th className="px-4 py-3 text-left text-[10px] font-semibold uppercase tracking-wider text-slate-400">
-                            Product
-                          </th>
+                <div className="overflow-x-auto rounded-xl border border-slate-200">
+                  <table className="w-full min-w-[950px]">
+                    <thead className="bg-slate-50">
+                      <tr>
+                        <Th>
+                          Product
+                        </Th>
 
-                          <th className="px-4 py-3 text-left text-[10px] font-semibold uppercase tracking-wider text-slate-400">
-                            Quantity
-                          </th>
+                        <Th>
+                          Current Stock
+                        </Th>
 
-                          <th className="px-4 py-3 text-left text-[10px] font-semibold uppercase tracking-wider text-slate-400">
-                            Rate
-                          </th>
+                        <Th>
+                          Quantity
+                        </Th>
 
-                          <th className="px-4 py-3 text-left text-[10px] font-semibold uppercase tracking-wider text-slate-400">
-                            Received
-                          </th>
+                        <Th>
+                          Rate
+                        </Th>
 
-                          <th className="px-4 py-3 text-right text-[10px] font-semibold uppercase tracking-wider text-slate-400">
-                            Amount
-                          </th>
+                        <Th>
+                          Received
+                        </Th>
 
-                          <th className="w-12 px-2 py-3" />
-                        </tr>
-                      </thead>
+                        <Th>
+                          Pending
+                        </Th>
 
-                      <tbody>
-                        {items.map((item, index) => {
-                          const product = products.find(
-                            (product) =>
-                              product.id === item.productId
-                          );
+                        <Th />
+                      </tr>
+                    </thead>
 
-                          const amount =
-                            Number(item.quantity || 0) *
-                            Number(item.rate || 0);
+                    <tbody className="divide-y divide-slate-100">
+                      {form.items.map(
+                        (
+                          item,
+                          index
+                        ) => {
+                          const product =
+                            products.find(
+                              (entry) =>
+                                String(
+                                  entry.id ||
+                                    entry._id
+                                ) ===
+                                String(
+                                  item.productId
+                                )
+                            );
+
+                          const pending =
+                            Math.max(
+                              Number(
+                                item.quantity ||
+                                  0
+                              ) -
+                                Number(
+                                  item.receivedQuantity ||
+                                    0
+                                ),
+                              0
+                            );
 
                           return (
                             <tr
-                              key={index}
-                              className="border-t border-slate-100"
+                              key={
+                                index
+                              }
                             >
-                              <td className="px-4 py-3">
+                              <td className="min-w-[260px] px-3 py-3">
                                 <select
-                                  value={item.productId}
-                                  onChange={(e) =>
+                                  value={
+                                    item.productId
+                                  }
+                                  onChange={(
+                                    event
+                                  ) =>
                                     updateItem(
                                       index,
                                       "productId",
-                                      e.target.value
+                                      event.target.value
                                     )
                                   }
-                                  className="w-full rounded-lg border border-slate-200 bg-white px-3 py-2 text-xs text-slate-700 outline-none focus:border-slate-400"
+                                  className={
+                                    inputClass
+                                  }
                                 >
                                   <option value="">
                                     Select product
                                   </option>
 
-                                  {products.map((product) => (
-                                    <option
-                                      key={product.id}
-                                      value={product.id}
-                                    >
-                                      {product.name} —{" "}
-                                      {product.sku}
-                                    </option>
-                                  ))}
+                                  {products.map(
+                                    (entry) => (
+                                      <option
+                                        key={
+                                          entry.id ||
+                                          entry._id
+                                        }
+                                        value={
+                                          entry.id ||
+                                          entry._id
+                                        }
+                                      >
+                                        {entry.name} ({entry.sku})
+                                      </option>
+                                    )
+                                  )}
                                 </select>
 
                                 {product && (
                                   <p className="mt-1 text-[10px] text-slate-400">
-                                    {product.category} •{" "}
-                                    {product.size} •{" "}
+                                    {product.type}
+                                    {" • "}
                                     {product.unit}
+
+                                    {product.assignedTo
+                                      ?.name
+                                      ? ` • Owner: ${product.assignedTo.name}`
+                                      : ""}
                                   </p>
                                 )}
                               </td>
 
-                              <td className="px-4 py-3">
-                                <input
-                                  type="number"
-                                  min="1"
-                                  value={item.quantity}
-                                  onChange={(e) =>
+                              <td className="px-3 py-3 text-sm text-slate-600">
+                                {Number(
+                                  product?.availableQuantity ??
+                                    product?.available ??
+                                    0
+                                ).toLocaleString()}
+                                {" "}
+                                {product?.stockUnit ||
+                                  product?.unit ||
+                                  ""}
+                              </td>
+
+                              <td className="px-3 py-3">
+                                <NumberInput
+                                  value={
+                                    item.quantity
+                                  }
+                                  onChange={(
+                                    value
+                                  ) =>
                                     updateItem(
                                       index,
                                       "quantity",
-                                      e.target.value
+                                      value
                                     )
                                   }
-                                  className="w-24 rounded-lg border border-slate-200 px-3 py-2 text-xs outline-none focus:border-slate-400"
                                 />
                               </td>
 
-                              <td className="px-4 py-3">
-                                <div className="relative">
-                                  <span className="absolute left-3 top-1/2 -translate-y-1/2 text-xs text-slate-400">
-                                    ₹
-                                  </span>
-
-                                  <input
-                                    type="number"
-                                    min="0"
-                                    step="0.01"
-                                    value={item.rate}
-                                    onChange={(e) =>
-                                      updateItem(
-                                        index,
-                                        "rate",
-                                        e.target.value
-                                      )
-                                    }
-                                    className="w-28 rounded-lg border border-slate-200 py-2 pl-7 pr-3 text-xs outline-none focus:border-slate-400"
-                                  />
-                                </div>
+                              <td className="px-3 py-3">
+                                <NumberInput
+                                  value={
+                                    item.rate
+                                  }
+                                  onChange={(
+                                    value
+                                  ) =>
+                                    updateItem(
+                                      index,
+                                      "rate",
+                                      value
+                                    )
+                                  }
+                                />
                               </td>
 
-                              <td className="px-4 py-3">
-                                <input
-                                  type="number"
-                                  min="0"
-                                  max={item.quantity}
+                              <td className="px-3 py-3">
+                                <NumberInput
                                   value={
                                     item.receivedQuantity
                                   }
-                                  onChange={(e) =>
+                                  onChange={(
+                                    value
+                                  ) =>
                                     updateItem(
                                       index,
                                       "receivedQuantity",
-                                      e.target.value
+                                      value
                                     )
                                   }
-                                  className="w-24 rounded-lg border border-slate-200 px-3 py-2 text-xs outline-none focus:border-slate-400"
                                 />
                               </td>
 
-                              <td className="px-4 py-3 text-right">
-                                <span className="text-xs font-semibold text-slate-800">
-                                  {formatCurrency(amount)}
-                                </span>
+                              <td className="px-3 py-3 text-sm font-medium text-slate-700">
+                                {pending}
                               </td>
 
-                              <td className="px-2 py-3">
+                              <td className="px-3 py-3">
                                 <button
                                   type="button"
-                                  onClick={() =>
-                                    removeItem(index)
+                                  disabled={
+                                    form.items.length ===
+                                    1
                                   }
-                                  disabled={items.length === 1}
-                                  className="rounded-lg p-2 text-slate-300 transition hover:bg-red-50 hover:text-red-500 disabled:cursor-not-allowed disabled:opacity-40"
+                                  onClick={() =>
+                                    setForm(
+                                      (current) => ({
+                                        ...current,
+
+                                        items:
+                                          current.items.filter(
+                                            (
+                                              _,
+                                              itemIndex
+                                            ) =>
+                                              itemIndex !==
+                                              index
+                                          ),
+                                      })
+                                    )
+                                  }
+                                  className="rounded-lg p-2 text-slate-400 hover:bg-red-50 hover:text-red-600 disabled:opacity-30"
                                 >
-                                  <Trash2 size={15} />
+                                  <Trash2
+                                    size={15}
+                                  />
                                 </button>
                               </td>
                             </tr>
                           );
-                        })}
-                      </tbody>
-                    </table>
-                  </div>
+                        }
+                      )}
+                    </tbody>
+                  </table>
                 </div>
               </section>
 
-              {/* Pricing */}
-              <section>
-                <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
-                  <div>
-                    <h3 className="text-sm font-semibold text-slate-900">
-                      Additional Information
-                    </h3>
+              <section className="grid grid-cols-1 gap-5 lg:grid-cols-2">
+                <Field label="Notes">
+                  <textarea
+                    rows={5}
+                    value={
+                      form.notes
+                    }
+                    onChange={(
+                      event
+                    ) =>
+                      setField(
+                        "notes",
+                        event.target.value
+                      )
+                    }
+                    className="w-full resize-none rounded-xl border border-slate-200 p-3 text-sm outline-none"
+                  />
+                </Field>
 
-                    <p className="mt-0.5 text-xs text-slate-400">
-                      Add tax, discount and notes.
-                    </p>
+                <div className="rounded-2xl border border-slate-200 bg-slate-50 p-5">
+                  <div className="grid grid-cols-2 gap-4">
+                    <Field label="GST %">
+                      <NumberInput
+                        value={
+                          form.gst
+                        }
+                        onChange={(
+                          value
+                        ) =>
+                          setField(
+                            "gst",
+                            value
+                          )
+                        }
+                      />
+                    </Field>
 
-                    <div className="mt-4 space-y-4">
-                      <div className="grid grid-cols-2 gap-4">
-                        <div>
-                          <label className="mb-1.5 block text-xs font-medium text-slate-600">
-                            GST (%)
-                          </label>
-
-                          <input
-                            type="number"
-                            min="0"
-                            value={gst}
-                            onChange={(e) =>
-                              setGst(e.target.value)
-                            }
-                            className="w-full rounded-xl border border-slate-200 px-3 py-2.5 text-sm outline-none focus:border-slate-400"
-                          />
-                        </div>
-
-                        <div>
-                          <label className="mb-1.5 block text-xs font-medium text-slate-600">
-                            Discount (₹)
-                          </label>
-
-                          <input
-                            type="number"
-                            min="0"
-                            value={discount}
-                            onChange={(e) =>
-                              setDiscount(e.target.value)
-                            }
-                            className="w-full rounded-xl border border-slate-200 px-3 py-2.5 text-sm outline-none focus:border-slate-400"
-                          />
-                        </div>
-                      </div>
-
-                      <div>
-                        <label className="mb-1.5 block text-xs font-medium text-slate-600">
-                          Notes
-                        </label>
-
-                        <textarea
-                          rows={4}
-                          value={notes}
-                          onChange={(e) =>
-                            setNotes(e.target.value)
-                          }
-                          placeholder="Add purchase notes..."
-                          className="w-full resize-none rounded-xl border border-slate-200 px-3 py-2.5 text-sm outline-none placeholder:text-slate-400 focus:border-slate-400"
-                        />
-                      </div>
-                    </div>
+                    <Field label="Discount">
+                      <NumberInput
+                        value={
+                          form.discount
+                        }
+                        onChange={(
+                          value
+                        ) =>
+                          setField(
+                            "discount",
+                            value
+                          )
+                        }
+                      />
+                    </Field>
                   </div>
 
-                  <div className="rounded-2xl border border-slate-200 bg-slate-50 p-5">
-                    <h3 className="text-sm font-semibold text-slate-900">
-                      Purchase Summary
-                    </h3>
+                  <div className="mt-5 space-y-2 text-sm">
+                    <Total
+                      label="Subtotal"
+                      value={
+                        totals.subtotal
+                      }
+                    />
 
-                    <div className="mt-5 space-y-3">
-                      <div className="flex items-center justify-between text-sm">
-                        <span className="text-slate-500">
-                          Subtotal
-                        </span>
+                    <Total
+                      label="Discount"
+                      value={
+                        -totals.discount
+                      }
+                    />
 
-                        <span className="font-medium text-slate-800">
-                          {formatCurrency(totals.subtotal)}
-                        </span>
-                      </div>
+                    <Total
+                      label="Tax"
+                      value={
+                        totals.tax
+                      }
+                    />
 
-                      <div className="flex items-center justify-between text-sm">
-                        <span className="text-slate-500">
-                          Discount
-                        </span>
-
-                        <span className="font-medium text-red-600">
-                          - {formatCurrency(totals.discountAmount)}
-                        </span>
-                      </div>
-
-                      <div className="flex items-center justify-between text-sm">
-                        <span className="text-slate-500">
-                          Taxable Amount
-                        </span>
-
-                        <span className="font-medium text-slate-800">
-                          {formatCurrency(totals.taxableAmount)}
-                        </span>
-                      </div>
-
-                      <div className="flex items-center justify-between text-sm">
-                        <span className="text-slate-500">
-                          GST ({gst}%)
-                        </span>
-
-                        <span className="font-medium text-slate-800">
-                          {formatCurrency(totals.tax)}
-                        </span>
-                      </div>
-
-                      <div className="my-3 border-t border-slate-200" />
-
-                      <div className="flex items-center justify-between">
-                        <span className="text-sm font-semibold text-slate-900">
-                          Grand Total
-                        </span>
-
-                        <span className="text-xl font-bold tracking-tight text-slate-900">
-                          {formatCurrency(totals.grandTotal)}
-                        </span>
-                      </div>
+                    <div className="border-t border-slate-200 pt-3">
+                      <Total
+                        strong
+                        label="Grand Total"
+                        value={
+                          totals.total
+                        }
+                      />
                     </div>
                   </div>
                 </div>
               </section>
             </div>
-          </div>
 
-          {/* Footer */}
-          <div className="flex items-center justify-end gap-3 border-t border-slate-100 bg-white px-6 py-4">
-            <button
-              type="button"
-              onClick={onClose}
-              className="rounded-xl border border-slate-200 px-4 py-2.5 text-sm font-medium text-slate-600 transition hover:bg-slate-50"
-            >
-              Cancel
-            </button>
+            <div className="flex justify-end gap-3 border-t border-slate-100 bg-slate-50 px-6 py-4">
+              <button
+                type="button"
+                onClick={
+                  onClose
+                }
+                disabled={
+                  submitting
+                }
+                className="rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-sm font-medium"
+              >
+                Cancel
+              </button>
 
-            <button
-              type="submit"
-              className="rounded-xl bg-slate-900 px-5 py-2.5 text-sm font-medium text-white shadow-sm transition hover:bg-slate-800"
-            >
-              {isEditing
-                ? "Update Purchase"
-                : "Create Purchase"}
-            </button>
-          </div>
-        </form>
+              <button
+                type="submit"
+                disabled={
+                  submitting ||
+                  loading
+                }
+                className="rounded-xl bg-slate-900 px-5 py-2.5 text-sm font-medium text-white disabled:opacity-50"
+              >
+                {submitting
+                  ? "Saving..."
+                  : purchase
+                    ? "Update Purchase"
+                    : "Create Purchase"}
+              </button>
+            </div>
+          </form>
+        </div>
       </div>
+
+      {supplierModal && (
+        <QuickSupplierModal
+          initialName={
+            supplierSeedName
+          }
+
+          saving={
+            supplierSaving
+          }
+
+          onClose={() => {
+            setSupplierModal(
+              false
+            );
+
+            setSupplierSeedName(
+              ""
+            );
+          }}
+
+          onSave={async (
+            payload
+          ) => {
+            try {
+              setSupplierSaving(
+                true
+              );
+
+              const supplier =
+                await onCreateSupplier(
+                  payload
+                );
+
+              setField(
+                "supplierId",
+                supplier.id ||
+                  supplier._id
+              );
+
+              setSupplierModal(
+                false
+              );
+
+              setSupplierSeedName(
+                ""
+              );
+            } finally {
+              setSupplierSaving(
+                false
+              );
+            }
+          }}
+        />
+      )}
+    </>
+  );
+}
+
+function Field({
+  label,
+  children,
+}) {
+  return (
+    <div>
+      <label className="mb-1.5 block text-xs font-medium text-slate-600">
+        {label}
+      </label>
+
+      {children}
     </div>
   );
 }
+
+function Th({
+  children,
+}) {
+  return (
+    <th className="px-3 py-3 text-left text-[10px] font-semibold uppercase tracking-wider text-slate-400">
+      {children}
+    </th>
+  );
+}
+
+function NumberInput({
+  value,
+  onChange,
+}) {
+  return (
+    <input
+      type="number"
+      min="0"
+      step="0.01"
+      value={
+        value
+      }
+      onChange={(
+        event
+      ) =>
+        onChange(
+          event.target.value
+        )
+      }
+      className="h-10 w-28 rounded-xl border border-slate-200 bg-white px-3 text-sm outline-none"
+    />
+  );
+}
+
+function Total({
+  label,
+  value,
+  strong,
+}) {
+  return (
+    <div className="flex justify-between">
+      <span
+        className={
+          strong
+            ? "font-semibold text-slate-900"
+            : "text-slate-500"
+        }
+      >
+        {label}
+      </span>
+
+      <span
+        className={
+          strong
+            ? "text-lg font-bold text-slate-900"
+            : "font-medium text-slate-800"
+        }
+      >
+        {new Intl.NumberFormat(
+          "en-IN",
+          {
+            style:
+              "currency",
+
+            currency:
+              "INR",
+          }
+        ).format(
+          Number(
+            value ||
+              0
+          )
+        )}
+      </span>
+    </div>
+  );
+}
+
+const inputClass =
+  "h-10 w-full rounded-xl border border-slate-200 bg-white px-3 text-sm text-slate-800 outline-none focus:border-slate-400";

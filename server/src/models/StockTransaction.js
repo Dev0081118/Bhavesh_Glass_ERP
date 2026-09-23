@@ -32,21 +32,30 @@ const stockTransactionSchema =
         type: String,
         enum: [
           "OPENING_STOCK",
+
           "PURCHASE",
+          "PURCHASE_REVERSAL",
+
           "PRODUCTION_OUTPUT",
+          "PRODUCTION_OUTPUT_REVERSAL",
+
           "PRODUCTION_CONSUMPTION",
+          "PRODUCTION_CONSUMPTION_REVERSAL",
+
           "SALE",
           "SALE_REVERSAL",
+
           "MANUAL",
           "ADJUSTMENT",
           "RETURN",
           "DAMAGE",
+
+          "SYSTEM_ROLLBACK",
         ],
         required: true,
         index: true,
       },
 
-      // Quantity entered by the user.
       quantity: {
         type: Number,
         required: true,
@@ -58,7 +67,9 @@ const stockTransactionSchema =
         required: true,
       },
 
-      // Quantity converted into the product stock unit.
+      /*
+       * Quantity expressed in Inventory's stock unit.
+       */
       primaryQuantity: {
         type: Number,
         required: true,
@@ -107,7 +118,13 @@ stockTransactionSchema.index({
   createdAt: -1,
 });
 
-module.exports = mongoose.model(
-  "StockTransaction",
-  stockTransactionSchema
-);
+stockTransactionSchema.index({
+  referenceType: 1,
+  referenceId: 1,
+});
+
+module.exports =
+  mongoose.model(
+    "StockTransaction",
+    stockTransactionSchema
+  );

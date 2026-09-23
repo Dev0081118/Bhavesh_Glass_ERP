@@ -1,160 +1,262 @@
 import {
   Eye,
-  MoreHorizontal,
   Pencil,
   Trash2,
 } from "lucide-react";
+
 import PurchaseStatus from "./PurchaseStatus";
 
-function formatCurrency(value) {
-  return new Intl.NumberFormat("en-IN", {
-    style: "currency",
-    currency: "INR",
-    maximumFractionDigits: 0,
-  }).format(value);
-}
-
-function formatDate(date) {
-  if (!date) return "-";
-
-  return new Date(`${date}T00:00:00`).toLocaleDateString(
+const money = (
+  value
+) =>
+  new Intl.NumberFormat(
     "en-IN",
     {
-      day: "2-digit",
-      month: "short",
-      year: "numeric",
+      style:
+        "currency",
+
+      currency:
+        "INR",
+
+      maximumFractionDigits:
+        0,
+    }
+  ).format(
+    Number(
+      value ||
+        0
+    )
+  );
+
+const date = (
+  value
+) => {
+  if (!value) {
+    return "—";
+  }
+
+  return new Date(
+    value
+  ).toLocaleDateString(
+    "en-IN",
+    {
+      day:
+        "2-digit",
+
+      month:
+        "short",
+
+      year:
+        "numeric",
     }
   );
-}
+};
 
 export default function PurchaseRow({
   purchase,
-  products,
+
   onView,
+
   onEdit,
+
   onDelete,
 }) {
-  const subtotal = purchase.items.reduce(
-    (sum, item) =>
-      sum + Number(item.quantity) * Number(item.rate),
-    0
-  );
+  const totalOrdered =
+    (
+      purchase.items ||
+      []
+    ).reduce(
+      (
+        total,
+        item
+      ) =>
+        total +
+        Number(
+          item.quantity ||
+            0
+        ),
+      0
+    );
 
-  const discount = Number(purchase.discount || 0);
+  const totalReceived =
+    (
+      purchase.items ||
+      []
+    ).reduce(
+      (
+        total,
+        item
+      ) =>
+        total +
+        Number(
+          item.receivedQuantity ||
+            0
+        ),
+      0
+    );
 
-  const taxableAmount = Math.max(subtotal - discount, 0);
-
-  const tax =
-    (taxableAmount * Number(purchase.gst || 0)) / 100;
-
-  const total = taxableAmount + tax;
-
-  const itemNames = purchase.items
-    .map((item) => {
-      const product = products.find(
-        (product) => product.id === item.productId
-      );
-
-      return product?.name || item.productId;
-    })
-    .slice(0, 2);
+  const progress =
+    totalOrdered > 0
+      ? Math.round(
+          (
+            totalReceived /
+            totalOrdered
+          ) *
+            100
+        )
+      : 0;
 
   return (
-    <tr className="border-b border-slate-100 last:border-0 transition hover:bg-slate-50/60">
-      <td className="px-5 py-4">
+    <tr className="hover:bg-slate-50/70">
+      <td className="px-4 py-4">
         <button
-          onClick={() => onView(purchase)}
+          onClick={() =>
+            onView(
+              purchase
+            )
+          }
           className="text-left"
         >
-          <p className="text-sm font-semibold text-slate-900 hover:text-blue-600">
-            {purchase.id}
+          <p className="text-sm font-semibold text-slate-900">
+            {purchase.purchaseNumber ||
+              purchase.id}
           </p>
 
-          <p className="mt-0.5 text-[11px] text-slate-400">
-            {purchase.items.length} line
-            {purchase.items.length !== 1 ? "s" : ""}
+          <p className="mt-1 text-[11px] text-slate-400">
+            {purchase.supplierInvoiceNumber ||
+              "No supplier invoice"}
           </p>
         </button>
       </td>
 
-      <td className="px-5 py-4">
+      <td className="px-4 py-4">
         <p className="text-sm font-medium text-slate-800">
-          {purchase.supplierName}
-        </p>
-
-        <p className="mt-0.5 text-[11px] text-slate-400">
-          {purchase.supplierId}
+          {purchase.supplierName ||
+            "Unknown supplier"}
         </p>
       </td>
 
-      <td className="px-5 py-4">
-        <div className="max-w-[230px]">
-          {itemNames.map((name, index) => (
-            <p
-              key={`${name}-${index}`}
-              className="truncate text-xs text-slate-600"
-            >
-              {name}
-            </p>
-          ))}
+      <td className="px-4 py-4">
+        <p className="text-sm text-slate-700">
+          {purchase.items?.length ||
+            0}{" "}
+          item(s)
+        </p>
 
-          {purchase.items.length > 2 && (
-            <p className="mt-0.5 text-[11px] font-medium text-slate-400">
-              +{purchase.items.length - 2} more
-            </p>
-          )}
+        <p className="mt-1 max-w-[200px] truncate text-xs text-slate-400">
+          {(
+            purchase.items ||
+            []
+          )
+            .map(
+              (
+                item
+              ) =>
+                item.name
+            )
+            .filter(
+              Boolean
+            )
+            .join(
+              ", "
+            )}
+        </p>
+      </td>
+
+      <td className="px-4 py-4 text-sm text-slate-600">
+        {date(
+          purchase.purchaseDate
+        )}
+      </td>
+
+      <td className="px-4 py-4">
+        <p className="text-xs font-medium text-slate-700">
+          {totalReceived} /{" "}
+          {totalOrdered}
+        </p>
+
+        <div className="mt-2 h-1.5 w-24 overflow-hidden rounded-full bg-slate-100">
+          <div
+            style={{
+              width: `${Math.min(
+                progress,
+                100
+              )}%`,
+            }}
+            className="h-full rounded-full bg-slate-800"
+          />
         </div>
-      </td>
 
-      <td className="px-5 py-4 text-sm text-slate-600">
-        {formatDate(purchase.purchaseDate)}
-      </td>
-
-      <td className="px-5 py-4 text-right">
-        <p className="text-sm font-semibold text-slate-900">
-          {formatCurrency(total)}
-        </p>
-
-        <p className="mt-0.5 text-[10px] text-slate-400">
-          GST {purchase.gst}%
+        <p className="mt-1 text-[10px] text-slate-400">
+          {progress}%
         </p>
       </td>
 
-      <td className="px-5 py-4">
-        <PurchaseStatus status={purchase.status} />
+      <td className="px-4 py-4 text-sm font-semibold text-slate-900">
+        {money(
+          purchase.grandTotal
+        )}
       </td>
 
-      <td className="px-5 py-4">
-        <div className="flex items-center justify-end gap-1">
+      <td className="px-4 py-4">
+        <p className="text-sm text-slate-700">
+          {purchase.assignedToName ||
+            "Not assigned"}
+        </p>
+      </td>
+
+      <td className="px-4 py-4">
+        <PurchaseStatus
+          status={
+            purchase.status
+          }
+        />
+      </td>
+
+      <td className="px-4 py-4 text-sm text-slate-600">
+        {purchase.paymentStatus ||
+          "Pending"}
+      </td>
+
+      <td className="px-4 py-4">
+        <div className="flex justify-end gap-1">
           <button
-            onClick={() => onView(purchase)}
-            title="View"
-            className="rounded-lg p-2 text-slate-400 transition hover:bg-slate-100 hover:text-slate-900"
+            onClick={() =>
+              onView(
+                purchase
+              )
+            }
+            className="rounded-lg p-2 text-slate-400 hover:bg-slate-100 hover:text-slate-800"
           >
-            <Eye size={16} />
+            <Eye
+              size={15}
+            />
           </button>
 
           <button
-            onClick={() => onEdit(purchase)}
-            title="Edit"
-            className="rounded-lg p-2 text-slate-400 transition hover:bg-slate-100 hover:text-slate-900"
+            onClick={() =>
+              onEdit(
+                purchase
+              )
+            }
+            className="rounded-lg p-2 text-slate-400 hover:bg-slate-100 hover:text-slate-800"
           >
-            <Pencil size={15} />
+            <Pencil
+              size={15}
+            />
           </button>
 
           <button
-            onClick={() => onDelete(purchase)}
-            title="Delete"
-            className="rounded-lg p-2 text-slate-400 transition hover:bg-red-50 hover:text-red-600"
+            onClick={() =>
+              onDelete(
+                purchase
+              )
+            }
+            className="rounded-lg p-2 text-slate-400 hover:bg-red-50 hover:text-red-600"
           >
-            <Trash2 size={15} />
-          </button>
-
-          <button
-            title="More"
-            className="rounded-lg p-2 text-slate-300"
-          >
-            <MoreHorizontal size={16} />
+            <Trash2
+              size={15}
+            />
           </button>
         </div>
       </td>

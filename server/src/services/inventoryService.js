@@ -1,55 +1,68 @@
-const mongoose = require("mongoose");
+const mongoose =
+  require("mongoose");
 
 const {
   Product,
   Inventory,
   StockTransaction,
   Notification,
+  User,
 } = require("../models");
 
-const roundQuantity = (value) =>
+const roundQuantity = (
+  value
+) =>
   Math.round(
-    (Number(value) + Number.EPSILON) *
+    (
+      Number(value) +
+      Number.EPSILON
+    ) *
       1000000
   ) / 1000000;
 
-const getConversion = (product) =>
-  (product?.conversions || [])[0] ||
-  null;
+const getConversion = (
+  product
+) =>
+  (
+    product?.conversions ||
+    []
+  )[0] || null;
 
-/*
- * Primary Unit  = the unit a product is bought / created in.
- * Stock Unit    = the unit Inventory counts in.
- *
- * When conversion is enabled the convertible unit (1 Sheet =
- * 50 Piece -> Piece) becomes the stock unit, so stock, minimum
- * stock level and every movement talk about the same unit.
- *
- * The converted unit is only promoted when it is the smaller
- * one (factor >= 1), otherwise stock would shrink instead.
- */
-const getStockUnit = (product) => {
-  const entryUnit = String(
-    product?.unit || "Piece"
-  );
+const getStockUnit = (
+  product
+) => {
+  const entryUnit =
+    String(
+      product?.unit ||
+        "Piece"
+    );
 
   const conversion =
-    getConversion(product);
+    getConversion(
+      product
+    );
 
-  const factor = Number(
-    conversion?.factor
-  );
+  const factor =
+    Number(
+      conversion?.factor
+    );
 
-  const convertibleUnit = String(
-    conversion?.unit || ""
-  );
+  const convertibleUnit =
+    String(
+      conversion?.unit ||
+        ""
+    );
 
   const canPromote =
     Boolean(
       product?.conversionEnabled
     ) &&
-    Boolean(convertibleUnit) &&
-    Number.isFinite(factor) &&
+    Boolean(
+      convertibleUnit
+    ) &&
+    Number.isFinite(
+      factor
+    ) &&
     factor >= 1 &&
     convertibleUnit.toLowerCase() !==
       entryUnit.toLowerCase();
@@ -59,72 +72,98 @@ const getStockUnit = (product) => {
     : entryUnit;
 };
 
-/*
- * How many stock units 1 Primary Unit is worth.
- * 1 Sheet = 50 Piece -> 50
- */
-const getStockFactor = (product) => {
-  const stockUnit = String(
-    getStockUnit(product)
-  ).toLowerCase();
+const getStockFactor = (
+  product
+) => {
+  const stockUnit =
+    String(
+      getStockUnit(
+        product
+      )
+    ).toLowerCase();
 
-  const entryUnit = String(
-    product?.unit || ""
-  ).toLowerCase();
+  const entryUnit =
+    String(
+      product?.unit ||
+        ""
+    ).toLowerCase();
 
-  if (stockUnit === entryUnit) {
+  if (
+    stockUnit ===
+    entryUnit
+  ) {
     return 1;
   }
 
   const conversion =
-    (product?.conversions || []).find(
+    (
+      product?.conversions ||
+      []
+    ).find(
       (item) =>
-        String(item.unit).toLowerCase() ===
+        String(
+          item.unit
+        ).toLowerCase() ===
         stockUnit
     );
 
-  const factor = Number(
-    conversion?.factor
-  );
+  const factor =
+    Number(
+      conversion?.factor
+    );
 
-  return Number.isFinite(factor) &&
+  return Number.isFinite(
+    factor
+  ) &&
     factor > 0
     ? factor
     : 1;
 };
 
-/*
- * Rate of a single unit against the Primary Unit.
- * Primary Unit -> 1
- * Convertible Unit -> its factor
- */
-const getUnitFactors = (product) => {
+const getUnitFactors = (
+  product
+) => {
   const factors = {};
 
-  const entryUnit = String(
-    product?.unit || ""
-  ).toLowerCase();
+  const entryUnit =
+    String(
+      product?.unit ||
+        ""
+    ).toLowerCase();
 
   if (entryUnit) {
-    factors[entryUnit] = 1;
+    factors[
+      entryUnit
+    ] = 1;
   }
 
-  (product?.conversions || []).forEach(
+  (
+    product?.conversions ||
+    []
+  ).forEach(
     (conversion) => {
-      const unit = String(
-        conversion?.unit || ""
-      ).toLowerCase();
+      const unit =
+        String(
+          conversion?.unit ||
+            ""
+        ).toLowerCase();
 
-      const factor = Number(
-        conversion?.factor
-      );
+      const factor =
+        Number(
+          conversion?.factor
+        );
 
       if (
         unit &&
-        Number.isFinite(factor) &&
+        Number.isFinite(
+          factor
+        ) &&
         factor > 0
       ) {
-        factors[unit] = factor;
+        factors[
+          unit
+        ] =
+          factor;
       }
     }
   );
@@ -132,214 +171,260 @@ const getUnitFactors = (product) => {
   return factors;
 };
 
-const getProduct = async (productId) => {
-  if (!mongoose.isValidObjectId(productId)) {
-    throw new Error(
-      "Invalid product ID."
+const getProduct =
+  async (
+    productId
+  ) => {
+    if (
+      !mongoose.isValidObjectId(
+        productId
+      )
+    ) {
+      throw new Error(
+        "Invalid product ID."
+      );
+    }
+
+    const product =
+      await Product.findById(
+        productId
+      );
+
+    if (!product) {
+      throw new Error(
+        "Product not found."
+      );
+    }
+
+    return product;
+  };
+
+const convertToPrimary =
+  (
+    product,
+    quantity,
+    unit
+  ) => {
+    const value =
+      Number(
+        quantity
+      );
+
+    if (
+      !Number.isFinite(
+        value
+      ) ||
+      value < 0
+    ) {
+      throw new Error(
+        "Invalid stock quantity."
+      );
+    }
+
+    const requestedUnit =
+      String(
+        unit ||
+          product.unit
+      ).toLowerCase();
+
+    const primaryUnit =
+      String(
+        product.unit
+      ).toLowerCase();
+
+    if (
+      requestedUnit ===
+      primaryUnit
+    ) {
+      return roundQuantity(
+        value
+      );
+    }
+
+    const conversion =
+      product.conversions?.find(
+        (item) =>
+          String(
+            item.unit
+          ).toLowerCase() ===
+          requestedUnit
+      );
+
+    if (
+      !product.conversionEnabled ||
+      !conversion
+    ) {
+      throw new Error(
+        `No conversion from ${unit} to ${product.unit} exists for ${product.name}.`
+      );
+    }
+
+    return roundQuantity(
+      value /
+        Number(
+          conversion.factor
+        )
     );
-  }
+  };
 
-  const product =
-    await Product.findById(productId);
+const convertToStockUnit =
+  (
+    product,
+    quantity,
+    unit
+  ) => {
+    const value =
+      Number(
+        quantity
+      );
 
-  if (!product) {
-    throw new Error(
-      "Product not found."
+    if (
+      !Number.isFinite(
+        value
+      ) ||
+      value < 0
+    ) {
+      throw new Error(
+        "Invalid stock quantity."
+      );
+    }
+
+    const stockUnit =
+      getStockUnit(
+        product
+      );
+
+    const requestedUnit =
+      String(
+        unit ||
+          product.unit
+      ).toLowerCase();
+
+    if (
+      requestedUnit ===
+      stockUnit.toLowerCase()
+    ) {
+      return roundQuantity(
+        value
+      );
+    }
+
+    const primaryQuantity =
+      convertToPrimary(
+        product,
+        value,
+        unit ||
+          product.unit
+      );
+
+    return roundQuantity(
+      primaryQuantity *
+        getStockFactor(
+          product
+        )
     );
-  }
+  };
 
-  return product;
-};
-
-/*
- * Example:
- *
- * Primary Unit = Sheet
- *
- * 1 Sheet = 50 Pieces
- *
- * quantity = 100
- * unit = Piece
- *
- * primary quantity = 2 Sheets
- */
-const convertToPrimary = (
-  product,
-  quantity,
-  unit
-) => {
-  const value = Number(quantity);
-
-  if (
-    !Number.isFinite(value) ||
-    value < 0
-  ) {
-    throw new Error(
-      "Invalid stock quantity."
-    );
-  }
-
-  const requestedUnit =
-    String(
-      unit || product.unit
-    ).toLowerCase();
-
-  const primaryUnit =
-    String(
-      product.unit
-    ).toLowerCase();
-
-  if (
-    requestedUnit === primaryUnit
-  ) {
-    return roundQuantity(value);
-  }
-
-  const conversion =
-    product.conversions?.find(
-      (item) =>
-        String(item.unit)
-          .toLowerCase() ===
-        requestedUnit
-    );
-
-  if (
-    !product.conversionEnabled ||
-    !conversion
-  ) {
-    throw new Error(
-      `No conversion from ${unit} to ${product.unit} exists for ${product.name}.`
-    );
-  }
-
-  return roundQuantity(
-    value /
-      Number(conversion.factor)
-  );
-};
-
-/*
- * Converts any quantity the user typed into the unit
- * Inventory counts in (the stock unit).
- *
- * Example:
- *
- * Primary Unit = Sheet, 1 Sheet = 50 Piece
- * Stock Unit   = Piece
- *
- * quantity = 10, unit = Sheet
- * stock quantity = 500 Piece
- *
- * quantity = 500, unit = Piece
- * stock quantity = 500 Piece
- */
-const convertToStockUnit = (
-  product,
-  quantity,
-  unit
-) => {
-  const value = Number(quantity);
-
-  if (
-    !Number.isFinite(value) ||
-    value < 0
-  ) {
-    throw new Error(
-      "Invalid stock quantity."
-    );
-  }
-
-  const stockUnit =
-    getStockUnit(product);
-
-  const requestedUnit =
-    String(
-      unit || product.unit
-    ).toLowerCase();
-
-  if (
-    requestedUnit ===
-    stockUnit.toLowerCase()
-  ) {
-    return roundQuantity(value);
-  }
-
-  const primaryQuantity =
-    convertToPrimary(
-      product,
-      value,
-      unit || product.unit
-    );
-
-  return roundQuantity(
-    primaryQuantity *
-      getStockFactor(product)
-  );
-};
-
-const ensureInventory = async (
-  product,
-  location
-) => {
-  let inventory =
-    await Inventory.findOne({
-      product: product._id,
-    });
-
-  if (!inventory) {
-    inventory =
-      await Inventory.create({
-        product: product._id,
-
-        quantity: 0,
-
-        reservedQuantity: 0,
-
-        availableQuantity: 0,
-
-        location:
-          location ||
-          product.location ||
-          "Main Warehouse",
+const ensureInventory =
+  async (
+    product,
+    location
+  ) => {
+    let inventory =
+      await Inventory.findOne({
+        product:
+          product._id,
       });
-  }
 
-  return inventory;
-};
+    if (!inventory) {
+      inventory =
+        await Inventory.create({
+          product:
+            product._id,
+
+          quantity: 0,
+
+          reservedQuantity:
+            0,
+
+          availableQuantity:
+            0,
+
+          location:
+            location ||
+            product.location ||
+            "Main Warehouse",
+        });
+    }
+
+    return inventory;
+  };
 
 const updateLowStockNotification =
   async (
     product,
     inventory
   ) => {
-    if (!product.assignedTo) {
+    if (
+      !product.assignedTo
+    ) {
+      return;
+    }
+
+    const assigned =
+      await User.findOne({
+        _id:
+          product.assignedTo,
+        status:
+          "Active",
+      }).select("_id");
+
+    const existing =
+      await Notification.findOne({
+        user:
+          product.assignedTo,
+
+        product:
+          product._id,
+
+        type:
+          "LOW_STOCK",
+
+        status:
+          "Active",
+      });
+
+    /*
+     * If responsible user was deactivated,
+     * resolve any old active alert.
+     */
+    if (!assigned) {
+      if (existing) {
+        existing.status =
+          "Resolved";
+
+        await existing.save();
+      }
+
       return;
     }
 
     const minimum =
       Number(
-        product.minimumStockLevel || 0
+        product.minimumStockLevel ||
+          0
       );
 
     const available =
       Number(
-        inventory.availableQuantity || 0
+        inventory.availableQuantity ||
+          0
       );
 
-    /*
-     * Stock and minimum stock level are both counted in
-     * the product stock unit, so they compare directly.
-     */
     const stockUnit =
-      getStockUnit(product);
-
-    const existing =
-      await Notification.findOne({
-        user: product.assignedTo,
-        product: product._id,
-        type: "LOW_STOCK",
-        status: "Active",
-      });
+      getStockUnit(
+        product
+      );
 
     if (
       minimum > 0 &&
@@ -352,20 +437,29 @@ const updateLowStockNotification =
 
       if (!existing) {
         await Notification.create({
-          user: product.assignedTo,
+          user:
+            product.assignedTo,
 
-          product: product._id,
+          product:
+            product._id,
 
-          type: "LOW_STOCK",
+          type:
+            "LOW_STOCK",
 
-          title: "Low Stock Alert",
+          title:
+            "Low Stock Alert",
 
           message,
         });
       } else if (
-        existing.message !== message
+        existing.message !==
+        message
       ) {
-        existing.message = message;
+        existing.message =
+          message;
+
+        existing.readAt =
+          null;
 
         await existing.save();
       }
@@ -404,13 +498,16 @@ const applyStockMovement =
     location,
   }) => {
     const product =
-      await getProduct(productId);
+      await getProduct(
+        productId
+      );
 
     const stockQuantity =
       convertToStockUnit(
         product,
         quantity,
-        unit || product.unit
+        unit ||
+          product.unit
       );
 
     if (
@@ -434,21 +531,24 @@ const applyStockMovement =
       );
 
     const stockUnit =
-      getStockUnit(product);
+      getStockUnit(
+        product
+      );
 
     if (
-      type === "OUT" &&
+      type ===
+        "OUT" &&
       stockQuantity >
         previousStock
     ) {
       throw new Error(
-        `Insufficient stock for ${product.name}. ` +
-          `Available stock is ${previousStock} ${stockUnit}.`
+        `Insufficient stock for ${product.name}. Available stock is ${previousStock} ${stockUnit}, but ${stockQuantity} ${stockUnit} is required.`
       );
     }
 
     const difference =
-      type === "OUT"
+      type ===
+      "OUT"
         ? -stockQuantity
         : stockQuantity;
 
@@ -484,54 +584,55 @@ const applyStockMovement =
     await inventory.save();
 
     const transaction =
-      await StockTransaction.create(
-        {
-          product:
-            product._id,
+      await StockTransaction.create({
+        product:
+          product._id,
 
-          inventory:
-            inventory._id,
+        inventory:
+          inventory._id,
 
-          type,
+        type,
 
-          source,
+        source,
 
-          quantity:
-            Number(quantity),
+        quantity:
+          Number(
+            quantity
+          ),
 
-          unit:
-            unit ||
-            product.unit,
+        unit:
+          unit ||
+          product.unit,
 
-          // Quantity converted into the product stock unit.
-          primaryQuantity:
-            stockQuantity,
+        primaryQuantity:
+          stockQuantity,
 
-          previousStock,
+        previousStock,
 
-          newStock,
+        newStock,
 
-          referenceType:
-            referenceType || "",
+        referenceType:
+          referenceType ||
+          "",
 
-          referenceId:
-            mongoose.isValidObjectId(
-              referenceId
-            )
-              ? referenceId
-              : null,
+        referenceId:
+          mongoose.isValidObjectId(
+            referenceId
+          )
+            ? referenceId
+            : null,
 
-          reason:
-            reason || "",
+        reason:
+          reason ||
+          "",
 
-          createdBy:
-            mongoose.isValidObjectId(
-              createdBy
-            )
-              ? createdBy
-              : null,
-        }
-      );
+        createdBy:
+          mongoose.isValidObjectId(
+            createdBy
+          )
+            ? createdBy
+            : null,
+      });
 
     await updateLowStockNotification(
       product,
@@ -543,6 +644,238 @@ const applyStockMovement =
       product,
       transaction,
     };
+  };
+
+/*
+ * Validate the entire collection BEFORE changing stock.
+ *
+ * This prevents:
+ * item #1 deducted successfully
+ * item #2 deducted successfully
+ * item #3 fails because stock is unavailable
+ *
+ * from leaving a partially applied business transaction.
+ */
+const validateStockMovements =
+  async (
+    movements = []
+  ) => {
+    const state =
+      new Map();
+
+    for (
+      const movement of
+      movements
+    ) {
+      const product =
+        await getProduct(
+          movement.productId
+        );
+
+      const productId =
+        String(
+          product._id
+        );
+
+      if (
+        !state.has(
+          productId
+        )
+      ) {
+        const inventory =
+          await Inventory.findOne({
+            product:
+              product._id,
+          });
+
+        state.set(
+          productId,
+          {
+            product,
+
+            available:
+              Number(
+                inventory
+                  ?.availableQuantity ||
+                  0
+              ),
+          }
+        );
+      }
+
+      const current =
+        state.get(
+          productId
+        );
+
+      const stockQuantity =
+        convertToStockUnit(
+          product,
+          movement.quantity,
+          movement.unit ||
+            product.unit
+        );
+
+      if (
+        stockQuantity <= 0
+      ) {
+        throw new Error(
+          `Quantity for ${product.name} must be greater than zero.`
+        );
+      }
+
+      if (
+        movement.type ===
+        "OUT"
+      ) {
+        if (
+          stockQuantity >
+          current.available
+        ) {
+          throw new Error(
+            `Only ${current.available} ${getStockUnit(
+              product
+            )} of ${product.name} are available. ${stockQuantity} ${getStockUnit(
+              product
+            )} are required.`
+          );
+        }
+
+        current.available =
+          roundQuantity(
+            current.available -
+              stockQuantity
+          );
+      } else {
+        current.available =
+          roundQuantity(
+            current.available +
+              stockQuantity
+          );
+      }
+    }
+
+    return true;
+  };
+
+/*
+ * Standalone MongoDB friendly safe batch.
+ *
+ * All movements are prevalidated first.
+ * If a database failure still occurs during application,
+ * already-applied movements are compensated in reverse.
+ */
+const applyStockMovementsSafely =
+  async (
+    movements = []
+  ) => {
+    const meaningful =
+      movements.filter(
+        (movement) =>
+          Number(
+            movement.quantity
+          ) > 0
+      );
+
+    if (
+      meaningful.length ===
+      0
+    ) {
+      return [];
+    }
+
+    await validateStockMovements(
+      meaningful
+    );
+
+    const applied = [];
+
+    try {
+      for (
+        const movement of
+        meaningful
+      ) {
+        const result =
+          await applyStockMovement(
+            movement
+          );
+
+        applied.push({
+          movement,
+          result,
+        });
+      }
+
+      return applied.map(
+        (item) =>
+          item.result
+      );
+    } catch (error) {
+      /*
+       * Compensate successful movements if a later
+       * database operation unexpectedly fails.
+       */
+      for (
+        let index =
+          applied.length - 1;
+        index >= 0;
+        index -= 1
+      ) {
+        const {
+          movement,
+        } =
+          applied[index];
+
+        try {
+          await applyStockMovement({
+            productId:
+              movement.productId,
+
+            type:
+              movement.type ===
+              "IN"
+                ? "OUT"
+                : "IN",
+
+            source:
+              "SYSTEM_ROLLBACK",
+
+            quantity:
+              movement.quantity,
+
+            unit:
+              movement.unit,
+
+            referenceType:
+              movement.referenceType,
+
+            referenceId:
+              movement.referenceId,
+
+            reason:
+              `Automatic rollback: ${
+                movement.reason ||
+                "stock movement"
+              }`,
+
+            createdBy:
+              movement.createdBy,
+
+            location:
+              movement.location,
+          });
+        } catch (
+          rollbackError
+        ) {
+          console.error(
+            "CRITICAL STOCK ROLLBACK FAILURE:",
+            rollbackError
+          );
+        }
+      }
+
+      throw error;
+    }
   };
 
 const adjustStock =
@@ -578,16 +911,16 @@ const adjustStock =
         inventory.product
       );
 
-    /*
-     * Physical counting is done in the unit the inventory
-     * screen shows, which is the product stock unit.
-     */
     const stockUnit =
-      getStockUnit(product);
+      getStockUnit(
+        product
+      );
 
     const newStock =
       roundQuantity(
-        Number(quantity)
+        Number(
+          quantity
+        )
       );
 
     if (
@@ -628,46 +961,47 @@ const adjustStock =
     await inventory.save();
 
     const transaction =
-      await StockTransaction.create(
-        {
-          product:
-            product._id,
+      await StockTransaction.create({
+        product:
+          product._id,
 
-          inventory:
-            inventory._id,
+        inventory:
+          inventory._id,
 
-          type: "ADJUSTMENT",
+        type:
+          "ADJUSTMENT",
 
-          source: "ADJUSTMENT",
+        source:
+          "ADJUSTMENT",
 
-          quantity:
-            Math.abs(
-              newStock -
-                previousStock
-            ),
-
-          unit: stockUnit,
-
-          primaryQuantity:
+        quantity:
+          Math.abs(
             newStock -
-            previousStock,
+              previousStock
+          ),
 
+        unit:
+          stockUnit,
+
+        primaryQuantity:
+          newStock -
           previousStock,
 
-          newStock,
+        previousStock,
 
-          reason:
-            reason ||
-            "Manual stock adjustment",
+        newStock,
 
-          createdBy:
-            mongoose.isValidObjectId(
-              createdBy
-            )
-              ? createdBy
-              : null,
-        }
-      );
+        reason:
+          reason ||
+          "Manual stock adjustment",
+
+        createdBy:
+          mongoose.isValidObjectId(
+            createdBy
+          )
+            ? createdBy
+            : null,
+      });
 
     await updateLowStockNotification(
       product,
@@ -680,27 +1014,20 @@ const adjustStock =
     };
   };
 
-/*
- * Keeps stored stock meaningful when a product edit changes
- * the stock unit (for example unit conversion is switched
- * off, so stock goes from Piece back to Sheet).
- *
- * Stored numbers are reinterpreted through the Primary Unit:
- * oldValue / oldRate * newRate
- *
- * Stock history is left untouched, because every transaction
- * keeps the quantity + unit exactly as it was entered.
- */
 const syncInventoryStockUnit =
   async (
     previousProduct,
     nextProduct
   ) => {
     const previousUnit =
-      getStockUnit(previousProduct);
+      getStockUnit(
+        previousProduct
+      );
 
     const nextUnit =
-      getStockUnit(nextProduct);
+      getStockUnit(
+        nextProduct
+      );
 
     if (
       previousUnit.toLowerCase() ===
@@ -711,30 +1038,45 @@ const syncInventoryStockUnit =
 
     const inventory =
       await Inventory.findOne({
-        product: nextProduct._id,
+        product:
+          nextProduct._id,
       });
 
     if (
       !inventory ||
-      Number(inventory.quantity || 0) <= 0
+      Number(
+        inventory.quantity ||
+          0
+      ) <= 0
     ) {
       return null;
     }
 
     const previousRate =
-      getUnitFactors(previousProduct)[
+      getUnitFactors(
+        previousProduct
+      )[
         previousUnit.toLowerCase()
       ] || 1;
 
     const nextRate =
-      getUnitFactors(nextProduct)[
+      getUnitFactors(
+        nextProduct
+      )[
         nextUnit.toLowerCase()
       ] || 1;
 
-    const convert = (value) =>
+    const convert = (
+      value
+    ) =>
       roundQuantity(
-        (Number(value || 0) /
-          previousRate) *
+        (
+          Number(
+            value ||
+              0
+          ) /
+          previousRate
+        ) *
           nextRate
       );
 
@@ -748,9 +1090,10 @@ const syncInventoryStockUnit =
         inventory.reservedQuantity
       );
 
-    inventory.quantity = convert(
-      inventory.quantity
-    );
+    inventory.quantity =
+      convert(
+        inventory.quantity
+      );
 
     await inventory.save();
 
@@ -768,9 +1111,18 @@ module.exports = {
   getUnitFactors,
   convertToPrimary,
   convertToStockUnit,
+
   syncInventoryStockUnit,
+
   ensureInventory,
+
   updateLowStockNotification,
+
   applyStockMovement,
+
+  validateStockMovements,
+
+  applyStockMovementsSafely,
+
   adjustStock,
 };

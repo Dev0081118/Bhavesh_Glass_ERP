@@ -1,130 +1,201 @@
-const mongoose = require(
-  "mongoose"
-);
+const mongoose =
+  require("mongoose");
 
 const referenceMappings = {
-  supplierId: "supplier",
-  productId: "product",
-  customerId: "customer",
-  managerId: "manager",
-  saleBillId: "saleBill",
-  dispatchId: "dispatch",
-  paymentId: "payment",
-  lrId: "lr",
-  partyId: "party",
+  supplierId:
+    "supplier",
+
+  productId:
+    "product",
+
+  customerId:
+    "customer",
+
+  managerId:
+    "manager",
+
+  assignedToId:
+    "assignedTo",
+
+  saleBillId:
+    "saleBill",
+
+  dispatchId:
+    "dispatch",
+
+  paymentId:
+    "payment",
+
+  lrId:
+    "lr",
+
+  partyId:
+    "party",
 };
 
-const normalizePayload = (
-  payload,
-  options = {}
-) => {
-  const normalized = {
-    ...payload,
-  };
+const normalizePayload =
+  (
+    payload,
+    options = {}
+  ) => {
+    const normalized = {
+      ...payload,
+    };
 
-  Object.entries(
-    referenceMappings
-  ).forEach(
-    ([
-      frontendKey,
-      modelKey,
-    ]) => {
-      if (
-        normalized[
-          frontendKey
-        ] &&
-        !normalized[
-          modelKey
-        ]
-      ) {
-        normalized[
-          modelKey
-        ] =
+    Object.entries(
+      referenceMappings
+    ).forEach(
+      ([
+        frontendKey,
+        modelKey,
+      ]) => {
+        if (
           normalized[
             frontendKey
-          ];
+          ] !==
+            undefined &&
+          normalized[
+            modelKey
+          ] ===
+            undefined
+        ) {
+          normalized[
+            modelKey
+          ] =
+            normalized[
+              frontendKey
+            ];
+        }
+
+        delete normalized[
+          frontendKey
+        ];
       }
+    );
 
-      delete normalized[
-        frontendKey
-      ];
-    }
-  );
+    if (
+      Array.isArray(
+        normalized.items
+      )
+    ) {
+      normalized.items =
+        normalized.items.map(
+          (item) => {
+            const nextItem = {
+              ...item,
+            };
 
-  if (
-    Array.isArray(
-      normalized.items
-    )
-  ) {
-    normalized.items =
-      normalized.items.map(
-        (item) => {
-          const nextItem = {
-            ...item,
-          };
+            if (
+              nextItem.productId &&
+              !nextItem.product
+            ) {
+              nextItem.product =
+                nextItem.productId;
+            }
 
-          if (
-            nextItem.productId &&
-            !nextItem.product
-          ) {
-            nextItem.product =
-              nextItem.productId;
+            delete nextItem.productId;
+            delete nextItem.name;
+            delete nextItem.sku;
+            delete nextItem.available;
+            delete nextItem.stock;
+
+            return nextItem;
           }
+        );
+    }
 
-          delete nextItem.productId;
-          delete nextItem.name;
-          delete nextItem.sku;
+    if (
+      Array.isArray(
+        normalized.rawMaterials
+      )
+    ) {
+      normalized.rawMaterials =
+        normalized.rawMaterials.map(
+          (item) => {
+            const nextItem = {
+              ...item,
 
-          return nextItem;
-        }
-      );
-  }
+              product:
+                item.product ||
+                item.productId,
+            };
 
-  if (
-    Array.isArray(
-      normalized.rawMaterials
-    )
-  ) {
-    normalized.rawMaterials =
-      normalized.rawMaterials.map(
-        (item) => {
-          const nextItem = {
-            ...item,
+            delete nextItem.productId;
+            delete nextItem.name;
+            delete nextItem.sku;
+            delete nextItem.available;
+            delete nextItem.shortage;
 
-            product:
-              item.product ||
-              item.productId,
-          };
+            return nextItem;
+          }
+        );
+    }
 
-          delete nextItem.productId;
-          delete nextItem.name;
+    if (
+      options.stringReferenceId
+    ) {
+      normalized.referenceId =
+        normalized.referenceId
+          ? String(
+              normalized.referenceId
+            )
+          : normalized.referenceId;
+    }
 
-          return nextItem;
-        }
-      );
-  }
+    return normalized;
+  };
 
-  if (
-    options.stringReferenceId
-  ) {
-    normalized.referenceId =
-      normalized.referenceId
-        ? String(
-            normalized.referenceId
-          )
-        : normalized.referenceId;
-  }
+const applyPopulate =
+  (
+    query,
+    populate = []
+  ) => {
+    let result =
+      query;
 
-  return normalized;
-};
+    (
+      populate ||
+      []
+    ).forEach(
+      (config) => {
+        result =
+          result.populate(
+            config
+          );
+      }
+    );
+
+    return result;
+  };
 
 const createResourceController =
   (
     Model,
     options = {}
   ) => {
+    const populateDocument =
+      async (
+        id
+      ) => {
+        let query =
+          Model.findById(
+            id
+          );
+
+        query =
+          applyPopulate(
+            query,
+            options.populate
+          );
+
+        return query;
+      };
+
     const list =
-      async (req, res) => {
+      async (
+        req,
+        res
+      ) => {
         try {
           const filter =
             options.listFilter
@@ -137,27 +208,22 @@ const createResourceController =
             Model.find(
               filter
             ).sort({
-              createdAt: -1,
+              createdAt:
+                -1,
             });
 
-          if (
-            options.populate
-          ) {
-            options.populate.forEach(
-              (path) => {
-                query =
-                  query.populate(
-                    path
-                  );
-              }
+          query =
+            applyPopulate(
+              query,
+              options.populate
             );
-          }
 
           const documents =
             await query;
 
           return res.json({
-            data: documents,
+            data:
+              documents,
           });
         } catch (error) {
           return res
@@ -171,7 +237,10 @@ const createResourceController =
       };
 
     const getOne =
-      async (req, res) => {
+      async (
+        req,
+        res
+      ) => {
         try {
           if (
             !mongoose.isValidObjectId(
@@ -187,7 +256,7 @@ const createResourceController =
           }
 
           const document =
-            await Model.findById(
+            await populateDocument(
               req.params.id
             );
 
@@ -201,7 +270,8 @@ const createResourceController =
           }
 
           return res.json({
-            data: document,
+            data:
+              document,
           });
         } catch (error) {
           return res
@@ -214,8 +284,12 @@ const createResourceController =
       };
 
     const create =
-      async (req, res) => {
-        let document = null;
+      async (
+        req,
+        res
+      ) => {
+        let document =
+          null;
 
         try {
           let payload =
@@ -228,22 +302,27 @@ const createResourceController =
             options.beforeCreate
           ) {
             payload =
-              (await options.beforeCreate(
-                req,
-                payload
-              )) || payload;
+              (
+                await options.beforeCreate(
+                  req,
+                  payload
+                )
+              ) ||
+              payload;
           }
 
           document =
             await Model.create({
               ...payload,
 
-              ...(options.createdBy
-                ? {
-                    createdBy:
-                      req.user._id,
-                  }
-                : {}),
+              ...(
+                options.createdBy
+                  ? {
+                      createdBy:
+                        req.user._id,
+                    }
+                  : {}
+              ),
             });
 
           if (
@@ -256,17 +335,19 @@ const createResourceController =
             );
           }
 
+          const populated =
+            await populateDocument(
+              document._id
+            );
+
           return res
             .status(201)
             .json({
-              data: document,
+              data:
+                populated ||
+                document,
             });
         } catch (error) {
-          /*
-           * If stock synchronisation
-           * fails, don't keep a newly
-           * created broken resource.
-           */
           if (
             document?._id &&
             options.afterCreate
@@ -289,7 +370,10 @@ const createResourceController =
       };
 
     const update =
-      async (req, res) => {
+      async (
+        req,
+        res
+      ) => {
         try {
           if (
             !mongoose.isValidObjectId(
@@ -318,18 +402,36 @@ const createResourceController =
               });
           }
 
+          let payload =
+            normalizePayload(
+              req.body,
+              options
+            );
+
+          if (
+            options.beforeUpdate
+          ) {
+            payload =
+              (
+                await options.beforeUpdate(
+                  req,
+                  payload,
+                  previous
+                )
+              ) ||
+              payload;
+          }
+
           const document =
             await Model.findByIdAndUpdate(
               req.params.id,
 
-              normalizePayload(
-                req.body,
-                options
-              ),
+              payload,
 
               {
                 new: true,
-                runValidators: true,
+                runValidators:
+                  true,
               }
             );
 
@@ -343,25 +445,29 @@ const createResourceController =
                 previous
               );
             }
-          } catch (hookError) {
-            /*
-             * Restore original resource
-             * if inventory sync fails.
-             */
+          } catch (
+            hookError
+          ) {
             await Model.replaceOne(
               {
                 _id:
                   previous._id,
               },
-
               previous.toObject()
             );
 
             throw hookError;
           }
 
+          const populated =
+            await populateDocument(
+              document._id
+            );
+
           return res.json({
-            data: document,
+            data:
+              populated ||
+              document,
           });
         } catch (error) {
           return res
@@ -375,7 +481,10 @@ const createResourceController =
       };
 
     const remove =
-      async (req, res) => {
+      async (
+        req,
+        res
+      ) => {
         try {
           if (
             !mongoose.isValidObjectId(
@@ -391,7 +500,7 @@ const createResourceController =
           }
 
           const document =
-            await Model.findByIdAndDelete(
+            await Model.findById(
               req.params.id
             );
 
@@ -404,16 +513,37 @@ const createResourceController =
               });
           }
 
+          if (
+            options.beforeDelete
+          ) {
+            await options.beforeDelete(
+              req,
+              document
+            );
+          }
+
+          await document.deleteOne();
+
+          if (
+            options.afterDelete
+          ) {
+            await options.afterDelete(
+              req,
+              document
+            );
+          }
+
           return res.json({
             message:
               "Record deleted successfully.",
           });
         } catch (error) {
           return res
-            .status(500)
+            .status(400)
             .json({
               message:
-                error.message,
+                error.message ||
+                "Unable to delete record.",
             });
         }
       };

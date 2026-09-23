@@ -1,6 +1,5 @@
-const express = require(
-  "express"
-);
+const express =
+  require("express");
 
 const {
   protect,
@@ -37,6 +36,16 @@ const inventoryController =
   );
 
 const {
+  getPurchaseLookups,
+  createPurchaseSupplier,
+
+  getProductionLookups,
+  createProductionFinishedProduct,
+} = require(
+  "../controllers/purchaseProductionLookupController"
+);
+
+const {
   syncPurchase,
   syncProduction,
   syncSaleBill,
@@ -60,6 +69,10 @@ const router =
   express.Router();
 
 router.use(protect);
+
+/* =========================================================
+   BILLING SNAPSHOT
+========================================================= */
 
 const captureBillingSnapshot =
   async (
@@ -93,7 +106,8 @@ const captureBillingSnapshot =
           },
 
           termsAndConditions:
-            settings.termsAndConditions ||
+            settings
+              .termsAndConditions ||
             "",
 
           capturedAt:
@@ -110,9 +124,9 @@ const captureBillingSnapshot =
     }
   };
 
-/* =========================
+/* =========================================================
    PRODUCT
-========================= */
+========================================================= */
 
 const productRouter =
   express.Router();
@@ -153,9 +167,9 @@ router.use(
   productRouter
 );
 
-/* =========================
+/* =========================================================
    INVENTORY
-========================= */
+========================================================= */
 
 const inventoryRouter =
   express.Router();
@@ -196,9 +210,59 @@ router.use(
   inventoryRouter
 );
 
-/* =========================
-   GENERIC RESOURCES
-========================= */
+/* =========================================================
+   PURCHASE STATIC ROUTES
+   MUST STAY BEFORE GENERIC /purchases/:id
+========================================================= */
+
+router.get(
+  "/purchases/lookups",
+
+  requireModuleAccess(
+    "purchase"
+  ),
+
+  getPurchaseLookups
+);
+
+router.post(
+  "/purchases/suppliers",
+
+  requireModuleAccess(
+    "purchase"
+  ),
+
+  createPurchaseSupplier
+);
+
+/* =========================================================
+   PRODUCTION STATIC ROUTES
+   MUST STAY BEFORE GENERIC /production/:id
+========================================================= */
+
+router.get(
+  "/production/lookups",
+
+  requireModuleAccess(
+    "production"
+  ),
+
+  getProductionLookups
+);
+
+router.post(
+  "/production/finished-products",
+
+  requireModuleAccess(
+    "production"
+  ),
+
+  createProductionFinishedProduct
+);
+
+/* =========================================================
+   GENERIC RESOURCE
+========================================================= */
 
 const mountResource = (
   path,
@@ -226,14 +290,14 @@ const mountResource = (
     controller.list
   );
 
-  resource.get(
-    "/:id",
-    controller.getOne
-  );
-
   resource.post(
     "/",
     controller.create
+  );
+
+  resource.get(
+    "/:id",
+    controller.getOne
   );
 
   resource.patch(
@@ -252,18 +316,69 @@ const mountResource = (
   );
 };
 
+/* =========================================================
+   PARTIES
+========================================================= */
+
 mountResource(
   "/parties",
   "dashboard",
   Party
 );
 
+/* =========================================================
+   PURCHASE
+========================================================= */
+
 mountResource(
   "/purchases",
   "purchase",
   Purchase,
   {
-    createdBy: true,
+    createdBy:
+      true,
+
+    populate: [
+      {
+        path:
+          "supplier",
+
+        select:
+          "name type email phone alternatePhone address city state gstNumber status",
+      },
+
+      {
+        path:
+          "assignedTo",
+
+        select:
+          "name email role department status",
+      },
+
+      {
+        path:
+          "createdBy",
+
+        select:
+          "name email role",
+      },
+
+      {
+        path:
+          "items.product",
+
+        select:
+          "name sku type category subCategory unit stockUnit purchasePrice sellingPrice minimumStockLevel location assignedTo status",
+
+        populate: {
+          path:
+            "assignedTo",
+
+          select:
+            "name email role department status",
+        },
+      },
+    ],
 
     afterCreate:
       syncPurchase,
@@ -272,12 +387,53 @@ mountResource(
       syncPurchase,
   }
 );
+
+/* =========================================================
+   PRODUCTION
+========================================================= */
 
 mountResource(
   "/production",
   "production",
   Production,
   {
+    createdBy:
+      true,
+
+    populate: [
+      {
+        path:
+          "product",
+
+        select:
+          "name sku type category subCategory unit stockUnit location status",
+      },
+
+      {
+        path:
+          "manager",
+
+        select:
+          "name email role department status",
+      },
+
+      {
+        path:
+          "createdBy",
+
+        select:
+          "name email role",
+      },
+
+      {
+        path:
+          "rawMaterials.product",
+
+        select:
+          "name sku type category unit stockUnit location minimumStockLevel status",
+      },
+    ],
+
     afterCreate:
       syncProduction,
 
@@ -285,6 +441,10 @@ mountResource(
       syncProduction,
   }
 );
+
+/* =========================================================
+   SALE BILL
+========================================================= */
 
 mountResource(
   "/sale-bills",
@@ -302,11 +462,19 @@ mountResource(
   }
 );
 
+/* =========================================================
+   PAYMENT
+========================================================= */
+
 mountResource(
   "/payments",
   "payment",
   Payment
 );
+
+/* =========================================================
+   DISPATCH
+========================================================= */
 
 mountResource(
   "/dispatch",
@@ -314,49 +482,72 @@ mountResource(
   Dispatch
 );
 
+/* =========================================================
+   LR
+========================================================= */
+
 mountResource(
   "/lrs",
   "lr",
   LR
 );
 
+/* =========================================================
+   LEDGER
+========================================================= */
+
 mountResource(
   "/ledger",
   "ledger",
   LedgerEntry,
   {
-    createdBy: true,
-    stringReferenceId: true,
+    createdBy:
+      true,
+
+    stringReferenceId:
+      true,
   }
 );
 
-/* =========================
+/* =========================================================
    NOTIFICATIONS
-========================= */
+========================================================= */
 
 router.get(
   "/notifications",
-  async (req, res) => {
+  async (
+    req,
+    res
+  ) => {
     try {
       const notifications =
         await Notification.find({
-          user: req.user._id,
+          user:
+            req.user._id,
         })
           .populate(
             "product",
             "name sku"
           )
           .sort({
-            createdAt: -1,
+            createdAt:
+              -1,
           })
-          .limit(100);
+          .limit(
+            100
+          );
 
-      res.json({
+      return res.json({
         data:
           notifications,
       });
     } catch (error) {
-      res
+      console.error(
+        "notifications:",
+        error
+      );
+
+      return res
         .status(500)
         .json({
           message:
@@ -368,7 +559,10 @@ router.get(
 
 router.patch(
   "/notifications/:id/read",
-  async (req, res) => {
+  async (
+    req,
+    res
+  ) => {
     try {
       const notification =
         await Notification.findOneAndUpdate(
@@ -379,28 +573,42 @@ router.patch(
             user:
               req.user._id,
           },
+
           {
             readAt:
               new Date(),
           },
+
           {
-            new: true,
+            new:
+              true,
           }
         );
 
-      res.json({
+      if (!notification) {
+        return res
+          .status(404)
+          .json({
+            message:
+              "Notification not found.",
+          });
+      }
+
+      return res.json({
         data:
           notification,
       });
     } catch (error) {
-      res
+      return res
         .status(400)
         .json({
           message:
+            error.message ||
             "Unable to update notification.",
         });
     }
   }
 );
 
-module.exports = router;
+module.exports =
+  router;

@@ -432,3 +432,23 @@ export const shareProductsOnWhatsApp =
         }),
       }
     );
+
+    export const getPurchaseLookups = (
+  token
+) =>
+  request(
+    "/purchases/lookups",
+    {
+      token,
+    }
+  );
+
+export const getProductionLookups = (
+  token
+) =>
+  request(
+    "/production/lookups",
+    {
+      token,
+    }
+  );

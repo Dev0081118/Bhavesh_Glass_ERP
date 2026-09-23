@@ -1,360 +1,475 @@
-import { useMemo, useState } from "react";
+import {
+  useEffect,
+  useMemo,
+  useState,
+} from "react";
+
 import ProductionHeader from "./ProductionHeader";
 import ProductionSummary from "./ProductionSummary";
 import ProductionFilters from "./ProductionFilters";
 import ProductionTable from "./ProductionTable";
 import ProductionForm from "./ProductionForm";
-import useBackendResource from "../../hooks/useBackendResource";
 import ProductionDetails from "./ProductionDetails";
 import DeleteProductionModal from "./DeleteProductionModal";
 
-const initialProducts = [
-  {
-    id: "PROD-001",
-    name: "Classic Black Photo Frame",
-    sku: "BG-FRM-001",
-    unit: "Piece",
-  },
-  {
-    id: "PROD-002",
-    name: "Premium Wooden Frame",
-    sku: "BG-FRM-002",
-    unit: "Piece",
-  },
-  {
-    id: "PROD-003",
-    name: "White MDF Frame",
-    sku: "BG-FRM-003",
-    unit: "Piece",
-  },
-  {
-    id: "PROD-004",
-    name: "Golden Designer Frame",
-    sku: "BG-FRM-004",
-    unit: "Piece",
-  },
-];
+import useBackendResource from "../../hooks/useBackendResource";
 
-const initialProduction = [
-  {
-    id: "PRD-001",
-    productId: "PROD-001",
-    productName: "Classic Black Photo Frame",
-    sku: "BG-FRM-001",
-    plannedQuantity: 100,
-    completedQuantity: 60,
-    wastage: 3,
-    unit: "Piece",
+import {
+  createQuickFinishedProduct,
+  getProductionLookups,
+} from "../../lib/purchaseProductionApi";
 
-    startDate: "2026-09-12",
-    expectedDate: "2026-09-22",
-    actualCompletionDate: "",
+import {
+  useToast,
+} from "../../components/ToastProvider";
 
-    managerId: "MGR-001",
-    managerName: "Rahul Shah",
+export default function Production({
+  token,
+}) {
+  const {
+    showToast,
+  } =
+    useToast();
 
-    location: "Production Unit 1",
+  const {
+    records:
+      productions,
 
-    status: "In Progress",
+    save,
+    remove,
 
-    rawMaterials: [
-      {
-        id: "RM-001",
-        productId: "RM-001",
-        name: "MDF Board",
-        requiredQuantity: 100,
-        consumedQuantity: 60,
-        unit: "Piece",
-      },
-      {
-        id: "RM-002",
-        productId: "RM-002",
-        name: "Glass Sheet",
-        requiredQuantity: 100,
-        consumedQuantity: 60,
-        unit: "Sheet",
-      },
-      {
-        id: "RM-003",
-        productId: "RM-003",
-        name: "Frame Back Board",
-        requiredQuantity: 100,
-        consumedQuantity: 60,
-        unit: "Piece",
-      },
-      {
-        id: "RM-004",
-        productId: "RM-004",
-        name: "Metal Frame Clip",
-        requiredQuantity: 400,
-        consumedQuantity: 240,
-        unit: "Piece",
-      },
-    ],
+    loading,
+  } =
+    useBackendResource(
+      token,
+      "production"
+    );
 
-    notes: "Production running normally.",
-  },
+  const [
+    products,
+    setProducts,
+  ] = useState([]);
 
-  {
-    id: "PRD-002",
-    productId: "PROD-002",
-    productName: "Premium Wooden Frame",
-    sku: "BG-FRM-002",
-    plannedQuantity: 80,
-    completedQuantity: 80,
-    wastage: 2,
-    unit: "Piece",
+  const [
+    staff,
+    setStaff,
+  ] = useState([]);
 
-    startDate: "2026-09-05",
-    expectedDate: "2026-09-15",
-    actualCompletionDate: "2026-09-14",
+  const [
+    lookupLoading,
+    setLookupLoading,
+  ] = useState(true);
 
-    managerId: "MGR-002",
-    managerName: "Amit Patel",
+  const [
+    filters,
+    setFilters,
+  ] = useState({
+    search:
+      "",
 
-    location: "Production Unit 1",
+    status:
+      "All",
 
-    status: "Completed",
-
-    rawMaterials: [
-      {
-        id: "RM-005",
-        productId: "RM-005",
-        name: "Wooden Board",
-        requiredQuantity: 80,
-        consumedQuantity: 80,
-        unit: "Piece",
-      },
-      {
-        id: "RM-006",
-        productId: "RM-006",
-        name: "Glass Sheet",
-        requiredQuantity: 80,
-        consumedQuantity: 80,
-        unit: "Sheet",
-      },
-    ],
-
-    notes: "Completed successfully.",
-  },
-
-  {
-    id: "PRD-003",
-    productId: "PROD-003",
-    productName: "White MDF Frame",
-    sku: "BG-FRM-003",
-    plannedQuantity: 150,
-    completedQuantity: 0,
-    wastage: 0,
-    unit: "Piece",
-
-    startDate: "2026-09-20",
-    expectedDate: "2026-09-30",
-    actualCompletionDate: "",
-
-    managerId: "MGR-001",
-    managerName: "Rahul Shah",
-
-    location: "Production Unit 2",
-
-    status: "Planned",
-
-    rawMaterials: [
-      {
-        id: "RM-007",
-        productId: "RM-007",
-        name: "MDF Board",
-        requiredQuantity: 150,
-        consumedQuantity: 0,
-        unit: "Piece",
-      },
-      {
-        id: "RM-008",
-        productId: "RM-008",
-        name: "Glass Sheet",
-        requiredQuantity: 150,
-        consumedQuantity: 0,
-        unit: "Sheet",
-      },
-    ],
-
-    notes: "Scheduled for next production cycle.",
-  },
-
-  {
-    id: "PRD-004",
-    productId: "PROD-004",
-    productName: "Golden Designer Frame",
-    sku: "BG-FRM-004",
-    plannedQuantity: 50,
-    completedQuantity: 20,
-    wastage: 1,
-    unit: "Piece",
-
-    startDate: "2026-09-10",
-    expectedDate: "2026-09-25",
-    actualCompletionDate: "",
-
-    managerId: "MGR-002",
-    managerName: "Amit Patel",
-
-    location: "Production Unit 2",
-
-    status: "Partially Completed",
-
-    rawMaterials: [
-      {
-        id: "RM-009",
-        productId: "RM-009",
-        name: "Designer MDF Board",
-        requiredQuantity: 50,
-        consumedQuantity: 20,
-        unit: "Piece",
-      },
-      {
-        id: "RM-010",
-        productId: "RM-010",
-        name: "Designer Glass",
-        requiredQuantity: 50,
-        consumedQuantity: 20,
-        unit: "Sheet",
-      },
-    ],
-
-    notes: "Waiting for additional raw material.",
-  },
-];
-
-const managers = [
-  {
-    id: "MGR-001",
-    name: "Rahul Shah",
-    department: "Production",
-  },
-  {
-    id: "MGR-002",
-    name: "Amit Patel",
-    department: "Production",
-  },
-];
-
-export default function Production({ token }) {
-  const resource = useBackendResource(token, "production", initialProduction);
-  const { records: productions, save, remove } = resource;
-
-  const [filters, setFilters] = useState({
-    search: "",
-    status: "All",
-    date: "",
+    date:
+      "",
   });
 
-  const [formOpen, setFormOpen] = useState(false);
-  const [editingProduction, setEditingProduction] = useState(null);
-  const [viewingProduction, setViewingProduction] = useState(null);
-  const [deletingProduction, setDeletingProduction] = useState(null);
+  const [
+    formOpen,
+    setFormOpen,
+  ] = useState(false);
 
-  const filteredProductions = useMemo(() => {
-    return productions.filter((production) => {
-      const search = filters.search.toLowerCase().trim();
+  const [
+    editingProduction,
+    setEditingProduction,
+  ] = useState(null);
 
-      const matchesSearch =
-        !search ||
-        production.id.toLowerCase().includes(search) ||
-        production.productName.toLowerCase().includes(search) ||
-        production.sku.toLowerCase().includes(search);
+  const [
+    viewingProduction,
+    setViewingProduction,
+  ] = useState(null);
 
-      const matchesStatus =
-        filters.status === "All" ||
-        production.status === filters.status;
+  const [
+    deletingProduction,
+    setDeletingProduction,
+  ] = useState(null);
 
-      const matchesDate =
-        !filters.date ||
-        production.startDate === filters.date;
+  const loadLookups =
+    async () => {
+      try {
+        setLookupLoading(
+          true
+        );
 
-      return matchesSearch && matchesStatus && matchesDate;
-    });
-  }, [productions, filters]);
+        const result =
+          await getProductionLookups(
+            token
+          );
 
-  const handleAdd = () => {
-    setEditingProduction(null);
-    setFormOpen(true);
-  };
+        setProducts(
+          (
+            result.data
+              ?.products ||
+            []
+          ).map(
+            (product) => ({
+              ...product,
 
-  const handleEdit = (production) => {
-    setEditingProduction(production);
-    setFormOpen(true);
-  };
+              id:
+                product._id,
 
-  const handleView = (production) => {
-    setViewingProduction(production);
-  };
+              available:
+                Number(
+                  product.availableQuantity ||
+                    0
+                ),
+            })
+          )
+        );
 
-  const handleDelete = (production) => {
-    setDeletingProduction(production);
-  };
+        setStaff(
+          (
+            result.data
+              ?.staff ||
+            []
+          ).map(
+            (person) => ({
+              ...person,
 
-  const handleSave = async (formData) => {
-    await save(formData, editingProduction?.id);
-    setFormOpen(false);
-    setEditingProduction(null);
-  };
+              id:
+                person._id,
+            })
+          )
+        );
+      } catch (error) {
+        showToast(
+          "error",
+          "Unable to load production data",
+          error.message
+        );
+      } finally {
+        setLookupLoading(
+          false
+        );
+      }
+    };
 
-  const confirmDelete = async () => {
-    if (!deletingProduction) return;
-    await remove(deletingProduction.id);
+  useEffect(() => {
+    if (token) {
+      loadLookups();
+    }
+  }, [token]);
 
-    setDeletingProduction(null);
-  };
+  const filtered =
+    useMemo(
+      () =>
+        productions.filter(
+          (production) => {
+            const query =
+              filters.search
+                .trim()
+                .toLowerCase();
+
+            const searchMatch =
+              !query ||
+              String(
+                production.productionNumber ||
+                  production.id ||
+                  ""
+              )
+                .toLowerCase()
+                .includes(
+                  query
+                ) ||
+              String(
+                production.productName ||
+                  ""
+              )
+                .toLowerCase()
+                .includes(
+                  query
+                );
+
+            const statusMatch =
+              filters.status ===
+                "All" ||
+              production.status ===
+                filters.status;
+
+            const dateMatch =
+              !filters.date ||
+              String(
+                production.startDate ||
+                  ""
+              ).slice(
+                0,
+                10
+              ) ===
+                filters.date;
+
+            return (
+              searchMatch &&
+              statusMatch &&
+              dateMatch
+            );
+          }
+        ),
+      [
+        productions,
+        filters,
+      ]
+    );
+
+  const createFinishedProduct =
+    async (
+      payload
+    ) => {
+      const result =
+        await createQuickFinishedProduct(
+          token,
+          payload
+        );
+
+      const product = {
+        ...result.data,
+
+        id:
+          result.data._id,
+
+        available:
+          Number(
+            result.data
+              .availableQuantity ||
+              0
+          ),
+      };
+
+      setProducts(
+        (current) => [
+          ...current,
+          product,
+        ].sort(
+          (
+            first,
+            second
+          ) =>
+            first.name.localeCompare(
+              second.name
+            )
+        )
+      );
+
+      showToast(
+        "success",
+        "Finished product created",
+        `${product.name} and its Inventory record are ready.`
+      );
+
+      return product;
+    };
+
+  const handleSave =
+    async (
+      data
+    ) => {
+      try {
+        await save(
+          data,
+          editingProduction
+            ?.id
+        );
+
+        showToast(
+          "success",
+          editingProduction
+            ? "Production updated"
+            : "Production created",
+          "Production saved successfully."
+        );
+
+        setFormOpen(
+          false
+        );
+
+        setEditingProduction(
+          null
+        );
+
+        /*
+         * Refresh stock shown in lookups
+         * after production stock movement.
+         */
+        await loadLookups();
+      } catch (error) {
+        showToast(
+          "error",
+          "Unable to save production",
+          error.message
+        );
+
+        throw error;
+      }
+    };
 
   return (
-    <div className="min-h-full bg-slate-50 p-6">
+    <div className="min-h-full bg-slate-50 p-4 sm:p-6">
       <div className="mx-auto max-w-[1600px] space-y-6">
-        <ProductionHeader onAdd={handleAdd} />
+        <ProductionHeader
+          onAdd={() => {
+            setEditingProduction(
+              null
+            );
 
-        <ProductionSummary productions={productions} />
+            setFormOpen(
+              true
+            );
+          }}
+        />
+
+        <ProductionSummary
+          productions={
+            productions
+          }
+        />
 
         <ProductionFilters
-          filters={filters}
-          setFilters={setFilters}
+          filters={
+            filters
+          }
+
+          setFilters={
+            setFilters
+          }
         />
 
-        <ProductionTable
-          productions={filteredProductions}
-          onView={handleView}
-          onEdit={handleEdit}
-          onDelete={handleDelete}
-        />
+        {loading ? (
+          <div className="rounded-2xl border border-slate-200 bg-white p-10 text-center text-sm text-slate-500">
+            Loading production...
+          </div>
+        ) : (
+          <ProductionTable
+            productions={
+              filtered
+            }
+
+            onView={
+              setViewingProduction
+            }
+
+            onEdit={(
+              production
+            ) => {
+              setEditingProduction(
+                production
+              );
+
+              setFormOpen(
+                true
+              );
+            }}
+
+            onDelete={
+              setDeletingProduction
+            }
+          />
+        )}
       </div>
 
       {formOpen && (
         <ProductionForm
-          production={editingProduction}
-          products={initialProducts}
-          managers={managers}
+          production={
+            editingProduction
+          }
+
+          products={
+            products
+          }
+
+          staff={
+            staff
+          }
+
+          loading={
+            lookupLoading
+          }
+
+          onCreateFinishedProduct={
+            createFinishedProduct
+          }
+
           onClose={() => {
-            setFormOpen(false);
-            setEditingProduction(null);
+            setFormOpen(
+              false
+            );
+
+            setEditingProduction(
+              null
+            );
           }}
-          onSave={handleSave}
+
+          onSave={
+            handleSave
+          }
         />
       )}
 
       {viewingProduction && (
         <ProductionDetails
-          production={viewingProduction}
-          onClose={() => setViewingProduction(null)}
+          production={
+            viewingProduction
+          }
+
+          onClose={() =>
+            setViewingProduction(
+              null
+            )
+          }
+
           onEdit={() => {
-            setViewingProduction(null);
-            handleEdit(viewingProduction);
+            setEditingProduction(
+              viewingProduction
+            );
+
+            setViewingProduction(
+              null
+            );
+
+            setFormOpen(
+              true
+            );
           }}
         />
       )}
 
       {deletingProduction && (
         <DeleteProductionModal
-          production={deletingProduction}
-          onClose={() => setDeletingProduction(null)}
-          onConfirm={confirmDelete}
+          production={
+            deletingProduction
+          }
+
+          onClose={() =>
+            setDeletingProduction(
+              null
+            )
+          }
+
+          onConfirm={async () => {
+            try {
+              await remove(
+                deletingProduction.id
+              );
+
+              setDeletingProduction(
+                null
+              );
+            } catch (error) {
+              showToast(
+                "error",
+                "Unable to delete production",
+                error.message
+              );
+            }
+          }}
         />
       )}
     </div>

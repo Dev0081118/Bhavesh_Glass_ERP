@@ -1,5 +1,17 @@
-import { Plus, Trash2, X } from "lucide-react";
-import { useEffect, useState } from "react";
+import {
+  useMemo,
+  useState,
+} from "react";
+
+import {
+  Factory,
+  Plus,
+  Trash2,
+  X,
+} from "lucide-react";
+
+import SearchCreateCombobox from "../../components/SearchCreateCombobox";
+import QuickFinishedProductModal from "./QuickFinishedProductModal";
 
 const statuses = [
   "Draft",
@@ -11,634 +23,1261 @@ const statuses = [
   "Cancelled",
 ];
 
-const locations = [
-  "Production Unit 1",
-  "Production Unit 2",
-  "Main Warehouse",
-];
+const materialTypes =
+  new Set([
+    "Raw Material",
+    "Accessory",
+    "Printing Material",
+    "Packaging Material",
+  ]);
 
-const createMaterial = () => ({
-  id: `RM-${Date.now()}-${Math.random()}`,
-  productId: "",
-  name: "",
-  requiredQuantity: "",
-  consumedQuantity: "",
-  unit: "Piece",
-});
+const dateInput =
+  (value) =>
+    value
+      ? String(
+          value
+        ).slice(
+          0,
+          10
+        )
+      : "";
+
+const createMaterial =
+  () => ({
+    productId:
+      "",
+
+    requiredQuantity:
+      0,
+
+    consumedQuantity:
+      0,
+
+    unit:
+      "",
+  });
 
 export default function ProductionForm({
   production,
-  products,
-  managers,
+
+  products = [],
+
+  staff = [],
+
+  loading = false,
+
+  onCreateFinishedProduct,
+
   onClose,
+
   onSave,
 }) {
-  const [form, setForm] = useState({
-    productId: "",
-    plannedQuantity: "",
-    completedQuantity: "",
-    wastage: "",
-    startDate: "",
-    expectedDate: "",
-    actualCompletionDate: "",
-    managerId: "",
-    location: "Production Unit 1",
-    status: "Draft",
-    notes: "",
-    rawMaterials: [createMaterial()],
+  const [
+    submitting,
+    setSubmitting,
+  ] = useState(false);
+
+  const [
+    error,
+    setError,
+  ] = useState("");
+
+  const [
+    quickProductOpen,
+    setQuickProductOpen,
+  ] = useState(false);
+
+  const [
+    quickProductName,
+    setQuickProductName,
+  ] = useState("");
+
+  const [
+    quickProductSaving,
+    setQuickProductSaving,
+  ] = useState(false);
+
+  const [
+    form,
+    setForm,
+  ] = useState({
+    productId:
+      production
+        ?.productId ||
+      production?.product
+        ?._id ||
+      "",
+
+    plannedQuantity:
+      production
+        ?.plannedQuantity ||
+      "",
+
+    completedQuantity:
+      production
+        ?.completedQuantity ||
+      0,
+
+    wastage:
+      production?.wastage ||
+      0,
+
+    startDate:
+      dateInput(
+        production
+          ?.startDate
+      ) ||
+      new Date()
+        .toISOString()
+        .slice(
+          0,
+          10
+        ),
+
+    expectedDate:
+      dateInput(
+        production
+          ?.expectedDate
+      ),
+
+    actualCompletionDate:
+      dateInput(
+        production
+          ?.actualCompletionDate
+      ),
+
+    managerId:
+      production
+        ?.managerId ||
+      production?.manager
+        ?._id ||
+      "",
+
+    location:
+      production?.location ||
+      "Production Unit 1",
+
+    status:
+      production?.status ||
+      "Draft",
+
+    notes:
+      production?.notes ||
+      "",
+
+    rawMaterials:
+      production
+        ?.rawMaterials
+        ?.length
+        ? production.rawMaterials.map(
+            (material) => ({
+              productId:
+                material.productId ||
+                material.product
+                  ?._id ||
+                material.product,
+
+              requiredQuantity:
+                Number(
+                  material.requiredQuantity ||
+                    0
+                ),
+
+              consumedQuantity:
+                Number(
+                  material.consumedQuantity ||
+                    0
+                ),
+
+              unit:
+                material.unit ||
+                "",
+            })
+          )
+        : [
+            createMaterial(),
+          ],
   });
 
-  const [errors, setErrors] = useState({});
+  const finishedProducts =
+    useMemo(
+      () =>
+        products.filter(
+          (product) =>
+            product.type ===
+            "Finished Product"
+        ),
+      [
+        products,
+      ]
+    );
 
-  useEffect(() => {
-    if (production) {
-      setForm({
-        productId: production.productId || "",
-        plannedQuantity: production.plannedQuantity ?? "",
-        completedQuantity: production.completedQuantity ?? "",
-        wastage: production.wastage ?? "",
-        startDate: production.startDate || "",
-        expectedDate: production.expectedDate || "",
-        actualCompletionDate:
-          production.actualCompletionDate || "",
-        managerId: production.managerId || "",
-        location: production.location || "Production Unit 1",
-        status: production.status || "Draft",
-        notes: production.notes || "",
-        rawMaterials:
-          production.rawMaterials?.length > 0
-            ? production.rawMaterials.map((material) => ({
-                ...material,
-              }))
-            : [createMaterial()],
-      });
-    }
-  }, [production]);
+  const materials =
+    useMemo(
+      () =>
+        products.filter(
+          (product) =>
+            materialTypes.has(
+              product.type
+            )
+        ),
+      [
+        products,
+      ]
+    );
 
-  const updateField = (field, value) => {
-    setForm((current) => ({
-      ...current,
-      [field]: value,
-    }));
+  const setField =
+    (
+      field,
+      value
+    ) =>
+      setForm(
+        (current) => ({
+          ...current,
 
-    setErrors((current) => ({
-      ...current,
-      [field]: "",
-    }));
-  };
-
-  const updateMaterial = (id, field, value) => {
-    setForm((current) => ({
-      ...current,
-      rawMaterials: current.rawMaterials.map((material) =>
-        material.id === id
-          ? {
-              ...material,
-              [field]: value,
-            }
-          : material
-      ),
-    }));
-  };
-
-  const addMaterial = () => {
-    setForm((current) => ({
-      ...current,
-      rawMaterials: [...current.rawMaterials, createMaterial()],
-    }));
-  };
-
-  const removeMaterial = (id) => {
-    setForm((current) => {
-      const materials = current.rawMaterials.filter(
-        (material) => material.id !== id
+          [field]:
+            value,
+        })
       );
 
-      return {
-        ...current,
-        rawMaterials:
-          materials.length > 0 ? materials : [createMaterial()],
-      };
-    });
-  };
+  const updateMaterial =
+    (
+      index,
+      field,
+      value
+    ) => {
+      setForm(
+        (current) => ({
+          ...current,
 
-  const handleMaterialProductChange = (id, productId) => {
-    const selected = products.find(
-      (product) => product.id === productId
+          rawMaterials:
+            current.rawMaterials.map(
+              (
+                material,
+                materialIndex
+              ) => {
+                if (
+                  materialIndex !==
+                  index
+                ) {
+                  return material;
+                }
+
+                if (
+                  field ===
+                  "productId"
+                ) {
+                  const product =
+                    materials.find(
+                      (item) =>
+                        String(
+                          item.id ||
+                            item._id
+                        ) ===
+                        String(
+                          value
+                        )
+                    );
+
+                  return {
+                    ...material,
+
+                    productId:
+                      value,
+
+                    unit:
+                      product
+                        ?.stockUnit ||
+                      product?.unit ||
+                      "",
+                  };
+                }
+
+                return {
+                  ...material,
+
+                  [field]:
+                    value,
+                };
+              }
+            ),
+        })
+      );
+    };
+
+  const maxProducible =
+    useMemo(
+      () => {
+        const planned =
+          Number(
+            form.plannedQuantity ||
+              0
+          );
+
+        if (
+          planned <= 0
+        ) {
+          return 0;
+        }
+
+        const limits =
+          form.rawMaterials
+            .filter(
+              (material) =>
+                material.productId &&
+                Number(
+                  material.requiredQuantity ||
+                    0
+                ) >
+                  0
+            )
+            .map(
+              (material) => {
+                const product =
+                  materials.find(
+                    (item) =>
+                      String(
+                        item.id ||
+                          item._id
+                      ) ===
+                      String(
+                        material.productId
+                      )
+                  );
+
+                if (!product) {
+                  return 0;
+                }
+
+                const requiredPerUnit =
+                  Number(
+                    material.requiredQuantity
+                  ) /
+                  planned;
+
+                if (
+                  requiredPerUnit <=
+                  0
+                ) {
+                  return Infinity;
+                }
+
+                return Math.floor(
+                  Number(
+                    product.availableQuantity ??
+                      product.available ??
+                      0
+                  ) /
+                    requiredPerUnit
+                );
+              }
+            );
+
+        if (
+          limits.length ===
+          0
+        ) {
+          return 0;
+        }
+
+        return Math.max(
+          0,
+          Math.min(
+            ...limits
+          )
+        );
+      },
+      [
+        form,
+        materials,
+      ]
     );
 
-    setForm((current) => ({
-      ...current,
-      rawMaterials: current.rawMaterials.map((material) =>
-        material.id === id
-          ? {
-              ...material,
-              productId,
-              name: selected?.name || "",
-              unit: selected?.unit || "Piece",
-            }
-          : material
-      ),
-    }));
-  };
+  const submit =
+    async (
+      event
+    ) => {
+      event.preventDefault();
 
-  const validate = () => {
-    const nextErrors = {};
+      setError("");
 
-    if (!form.productId) {
-      nextErrors.productId = "Select a finished product.";
-    }
+      if (
+        !form.productId
+      ) {
+        setError(
+          "Please select or create a finished product."
+        );
 
-    if (
-      !form.plannedQuantity ||
-      Number(form.plannedQuantity) <= 0
-    ) {
-      nextErrors.plannedQuantity =
-        "Enter a valid planned quantity.";
-    }
+        return;
+      }
 
-    if (Number(form.completedQuantity || 0) > Number(form.plannedQuantity || 0)) {
-      nextErrors.completedQuantity =
-        "Completed quantity cannot exceed planned quantity.";
-    }
+      if (
+        !form.managerId
+      ) {
+        setError(
+          "Responsible person is required."
+        );
 
-    if (!form.startDate) {
-      nextErrors.startDate = "Select a start date.";
-    }
+        return;
+      }
 
-    if (!form.expectedDate) {
-      nextErrors.expectedDate = "Select an expected completion date.";
-    }
+      if (
+        Number(
+          form.completedQuantity ||
+            0
+        ) >
+        Number(
+          form.plannedQuantity ||
+            0
+        )
+      ) {
+        setError(
+          "Completed quantity cannot exceed planned quantity."
+        );
 
-    if (!form.managerId) {
-      nextErrors.managerId = "Select a production manager.";
-    }
+        return;
+      }
 
-    setErrors(nextErrors);
+      const selectedMaterials =
+        form.rawMaterials.filter(
+          (material) =>
+            material.productId
+        );
 
-    return Object.keys(nextErrors).length === 0;
-  };
+      const ids =
+        selectedMaterials.map(
+          (material) =>
+            String(
+              material.productId
+            )
+        );
 
-  const handleSubmit = (e) => {
-    e.preventDefault();
+      if (
+        new Set(
+          ids
+        ).size !==
+        ids.length
+      ) {
+        setError(
+          "The same raw material cannot be added twice."
+        );
 
-    if (!validate()) return;
+        return;
+      }
 
-    const selectedProduct = products.find(
-      (product) => product.id === form.productId
-    );
+      try {
+        setSubmitting(
+          true
+        );
 
-    const selectedManager = managers.find(
-      (manager) => manager.id === form.managerId
-    );
+        await onSave({
+          ...form,
 
-    const cleanedMaterials = form.rawMaterials
-      .filter((material) => material.productId)
-      .map((material) => ({
-        ...material,
-        requiredQuantity: Number(material.requiredQuantity || 0),
-        consumedQuantity: Number(material.consumedQuantity || 0),
-      }));
+          productId:
+            form.productId,
 
-    onSave({
-      ...form,
+          managerId:
+            form.managerId,
 
-      productName: selectedProduct?.name || "",
-      sku: selectedProduct?.sku || "",
-      unit: selectedProduct?.unit || "Piece",
+          plannedQuantity:
+            Number(
+              form.plannedQuantity ||
+                0
+            ),
 
-      plannedQuantity: Number(form.plannedQuantity || 0),
-      completedQuantity: Number(form.completedQuantity || 0),
-      wastage: Number(form.wastage || 0),
+          completedQuantity:
+            Number(
+              form.completedQuantity ||
+                0
+            ),
 
-      managerName: selectedManager?.name || "",
+          wastage:
+            Number(
+              form.wastage ||
+                0
+            ),
 
-      rawMaterials: cleanedMaterials,
-    });
-  };
+          rawMaterials:
+            selectedMaterials.map(
+              (material) => ({
+                productId:
+                  material.productId,
+
+                requiredQuantity:
+                  Number(
+                    material.requiredQuantity ||
+                      0
+                  ),
+
+                consumedQuantity:
+                  Number(
+                    material.consumedQuantity ||
+                      0
+                  ),
+
+                unit:
+                  material.unit,
+              })
+            ),
+        });
+      } catch (
+        saveError
+      ) {
+        setError(
+          saveError.message
+        );
+      } finally {
+        setSubmitting(
+          false
+        );
+      }
+    };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/40 p-4 backdrop-blur-[2px]">
-      <div className="flex max-h-[92vh] w-full max-w-5xl flex-col overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-2xl">
-        <div className="flex items-center justify-between border-b border-slate-100 px-6 py-4">
-          <div>
-            <h2 className="text-lg font-semibold text-slate-900">
-              {production
-                ? "Edit Production Order"
-                : "New Production Order"}
-            </h2>
+    <>
+      <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/40 p-4 backdrop-blur-sm">
+        <div className="flex max-h-[94vh] w-full max-w-6xl flex-col overflow-hidden rounded-3xl bg-white shadow-2xl">
+          <div className="flex items-center justify-between border-b border-slate-100 px-6 py-5">
+            <div className="flex items-center gap-3">
+              <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-slate-900 text-white">
+                <Factory
+                  size={18}
+                />
+              </div>
 
-            <p className="mt-1 text-xs text-slate-400">
-              Create and manage manufacturing production details.
-            </p>
+              <div>
+                <h2 className="text-lg font-semibold text-slate-900">
+                  {production
+                    ? "Edit Production"
+                    : "New Production"}
+                </h2>
+
+                <p className="mt-1 text-xs text-slate-400">
+                  Consume raw materials and create finished stock.
+                </p>
+              </div>
+            </div>
+
+            <button
+              type="button"
+              onClick={
+                onClose
+              }
+              className="rounded-xl p-2 text-slate-400 hover:bg-slate-100"
+            >
+              <X
+                size={19}
+              />
+            </button>
           </div>
 
-          <button
-            type="button"
-            onClick={onClose}
-            className="flex h-9 w-9 items-center justify-center rounded-lg text-slate-400 hover:bg-slate-100 hover:text-slate-700"
+          <form
+            onSubmit={
+              submit
+            }
+            className="flex-1 overflow-y-auto"
           >
-            <X size={19} />
-          </button>
-        </div>
+            <div className="space-y-8 p-6">
+              {error && (
+                <div className="rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
+                  {error}
+                </div>
+              )}
 
-        <form
-          onSubmit={handleSubmit}
-          className="flex-1 overflow-y-auto"
-        >
-          <div className="space-y-8 p-6">
-            {/* Production Information */}
-            <section>
-              <div className="mb-4">
-                <h3 className="text-sm font-semibold text-slate-900">
+              <section>
+                <h3 className="mb-4 text-sm font-semibold text-slate-900">
                   Production Information
                 </h3>
 
-                <p className="mt-1 text-xs text-slate-400">
-                  Define the finished product and production quantity.
-                </p>
-              </div>
+                <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-4">
+                  <Field label="Finished Product *">
+                    <SearchCreateCombobox
+                      value={
+                        form.productId
+                      }
 
-              <div className="grid grid-cols-1 gap-5 md:grid-cols-2">
-                <Field label="Finished Product" required error={errors.productId}>
-                  <select
-                    value={form.productId}
-                    onChange={(e) =>
-                      updateField("productId", e.target.value)
-                    }
-                    className={inputClass(errors.productId)}
-                  >
-                    <option value="">Select product</option>
+                      items={
+                        finishedProducts
+                      }
 
-                    {products.map((product) => (
-                      <option key={product.id} value={product.id}>
-                        {product.name} ({product.sku})
+                      placeholder="Type finished product..."
+
+                      emptyText="No finished products found."
+
+                      createLabel="Create finished product"
+
+                      onChange={(
+                        id
+                      ) =>
+                        setField(
+                          "productId",
+                          id
+                        )
+                      }
+
+                      onCreate={(
+                        name
+                      ) => {
+                        setQuickProductName(
+                          name
+                        );
+
+                        setQuickProductOpen(
+                          true
+                        );
+                      }}
+
+                      renderSecondary={(
+                        product
+                      ) => (
+                        <>
+                          {product.sku}
+                          {" • "}
+                          {product.category}
+                          {" • Stock: "}
+                          {Number(
+                            product.availableQuantity ??
+                              product.available ??
+                              0
+                          ).toLocaleString()}
+                          {" "}
+                          {product.stockUnit ||
+                            product.unit}
+                        </>
+                      )}
+                    />
+                  </Field>
+
+                  <Field label="Responsible Person *">
+                    <select
+                      required
+                      value={
+                        form.managerId
+                      }
+                      onChange={(
+                        event
+                      ) =>
+                        setField(
+                          "managerId",
+                          event.target.value
+                        )
+                      }
+                      className={
+                        inputClass
+                      }
+                    >
+                      <option value="">
+                        Select person
                       </option>
-                    ))}
-                  </select>
-                </Field>
 
-                <Field label="Status">
-                  <select
-                    value={form.status}
-                    onChange={(e) =>
-                      updateField("status", e.target.value)
-                    }
-                    className={inputClass()}
-                  >
-                    {statuses.map((status) => (
-                      <option key={status} value={status}>
-                        {status}
-                      </option>
-                    ))}
-                  </select>
-                </Field>
+                      {staff.map(
+                        (person) => (
+                          <option
+                            key={
+                              person.id ||
+                              person._id
+                            }
+                            value={
+                              person.id ||
+                              person._id
+                            }
+                          >
+                            {person.name}
+                            {" — "}
+                            {person.role}
+                            {person.department
+                              ? ` • ${person.department}`
+                              : ""}
+                          </option>
+                        )
+                      )}
+                    </select>
+                  </Field>
 
-                <Field
-                  label="Planned Quantity"
-                  required
-                  error={errors.plannedQuantity}
-                >
-                  <input
-                    type="number"
-                    min="0"
-                    value={form.plannedQuantity}
-                    onChange={(e) =>
-                      updateField(
-                        "plannedQuantity",
-                        e.target.value
+                  <Field label="Status">
+                    <select
+                      value={
+                        form.status
+                      }
+                      onChange={(
+                        event
+                      ) =>
+                        setField(
+                          "status",
+                          event.target.value
+                        )
+                      }
+                      className={
+                        inputClass
+                      }
+                    >
+                      {statuses.map(
+                        (status) => (
+                          <option
+                            key={
+                              status
+                            }
+                          >
+                            {status}
+                          </option>
+                        )
+                      )}
+                    </select>
+                  </Field>
+
+                  <Field label="Location">
+                    <input
+                      value={
+                        form.location
+                      }
+                      onChange={(
+                        event
+                      ) =>
+                        setField(
+                          "location",
+                          event.target.value
+                        )
+                      }
+                      className={
+                        inputClass
+                      }
+                    />
+                  </Field>
+
+                  <Field label="Planned Quantity">
+                    <NumberInput
+                      value={
+                        form.plannedQuantity
+                      }
+                      onChange={(
+                        value
+                      ) =>
+                        setField(
+                          "plannedQuantity",
+                          value
+                        )
+                      }
+                    />
+                  </Field>
+
+                  <Field label="Completed Quantity">
+                    <NumberInput
+                      value={
+                        form.completedQuantity
+                      }
+                      onChange={(
+                        value
+                      ) =>
+                        setField(
+                          "completedQuantity",
+                          value
+                        )
+                      }
+                    />
+                  </Field>
+
+                  <Field label="Wastage / Rejected">
+                    <NumberInput
+                      value={
+                        form.wastage
+                      }
+                      onChange={(
+                        value
+                      ) =>
+                        setField(
+                          "wastage",
+                          value
+                        )
+                      }
+                    />
+                  </Field>
+
+                  <div className="rounded-xl border border-slate-200 bg-slate-50 p-3">
+                    <p className="text-xs text-slate-400">
+                      Maximum Producible
+                    </p>
+
+                    <p className="mt-1 text-xl font-semibold text-slate-900">
+                      {maxProducible.toLocaleString()}
+                    </p>
+
+                    <p className="mt-1 text-[10px] text-slate-400">
+                      Based on current raw-material inventory
+                    </p>
+                  </div>
+                </div>
+              </section>
+
+              <section>
+                <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
+                  <Field label="Start Date">
+                    <input
+                      required
+                      type="date"
+                      value={
+                        form.startDate
+                      }
+                      onChange={(
+                        event
+                      ) =>
+                        setField(
+                          "startDate",
+                          event.target.value
+                        )
+                      }
+                      className={
+                        inputClass
+                      }
+                    />
+                  </Field>
+
+                  <Field label="Expected Completion">
+                    <input
+                      required
+                      type="date"
+                      value={
+                        form.expectedDate
+                      }
+                      onChange={(
+                        event
+                      ) =>
+                        setField(
+                          "expectedDate",
+                          event.target.value
+                        )
+                      }
+                      className={
+                        inputClass
+                      }
+                    />
+                  </Field>
+
+                  <Field label="Actual Completion">
+                    <input
+                      type="date"
+                      value={
+                        form.actualCompletionDate
+                      }
+                      onChange={(
+                        event
+                      ) =>
+                        setField(
+                          "actualCompletionDate",
+                          event.target.value
+                        )
+                      }
+                      className={
+                        inputClass
+                      }
+                    />
+                  </Field>
+                </div>
+              </section>
+
+              <section>
+                <div className="mb-4 flex items-center justify-between">
+                  <div>
+                    <h3 className="text-sm font-semibold text-slate-900">
+                      Raw Materials
+                    </h3>
+
+                    <p className="mt-1 text-xs text-slate-400">
+                      Consumed quantities are deducted from Inventory.
+                    </p>
+                  </div>
+
+                  <button
+                    type="button"
+                    onClick={() =>
+                      setForm(
+                        (current) => ({
+                          ...current,
+
+                          rawMaterials: [
+                            ...current.rawMaterials,
+                            createMaterial(),
+                          ],
+                        })
                       )
                     }
-                    placeholder="100"
-                    className={inputClass(errors.plannedQuantity)}
-                  />
-                </Field>
-
-                <Field
-                  label="Completed Quantity"
-                  error={errors.completedQuantity}
-                >
-                  <input
-                    type="number"
-                    min="0"
-                    value={form.completedQuantity}
-                    onChange={(e) =>
-                      updateField(
-                        "completedQuantity",
-                        e.target.value
-                      )
-                    }
-                    placeholder="0"
-                    className={inputClass(errors.completedQuantity)}
-                  />
-                </Field>
-
-                <Field label="Wastage">
-                  <input
-                    type="number"
-                    min="0"
-                    value={form.wastage}
-                    onChange={(e) =>
-                      updateField("wastage", e.target.value)
-                    }
-                    placeholder="0"
-                    className={inputClass()}
-                  />
-                </Field>
-
-                <Field label="Production Manager" required error={errors.managerId}>
-                  <select
-                    value={form.managerId}
-                    onChange={(e) =>
-                      updateField("managerId", e.target.value)
-                    }
-                    className={inputClass(errors.managerId)}
+                    className="flex items-center gap-2 rounded-xl border border-slate-200 px-3 py-2 text-xs font-medium"
                   >
-                    <option value="">Select manager</option>
-
-                    {managers.map((manager) => (
-                      <option key={manager.id} value={manager.id}>
-                        {manager.name}
-                      </option>
-                    ))}
-                  </select>
-                </Field>
-
-                <Field label="Production Location">
-                  <select
-                    value={form.location}
-                    onChange={(e) =>
-                      updateField("location", e.target.value)
-                    }
-                    className={inputClass()}
-                  >
-                    {locations.map((location) => (
-                      <option key={location} value={location}>
-                        {location}
-                      </option>
-                    ))}
-                  </select>
-                </Field>
-              </div>
-            </section>
-
-            {/* Dates */}
-            <section>
-              <div className="mb-4">
-                <h3 className="text-sm font-semibold text-slate-900">
-                  Production Timeline
-                </h3>
-              </div>
-
-              <div className="grid grid-cols-1 gap-5 md:grid-cols-3">
-                <Field
-                  label="Start Date"
-                  required
-                  error={errors.startDate}
-                >
-                  <input
-                    type="date"
-                    value={form.startDate}
-                    onChange={(e) =>
-                      updateField("startDate", e.target.value)
-                    }
-                    className={inputClass(errors.startDate)}
-                  />
-                </Field>
-
-                <Field
-                  label="Expected Completion"
-                  required
-                  error={errors.expectedDate}
-                >
-                  <input
-                    type="date"
-                    value={form.expectedDate}
-                    onChange={(e) =>
-                      updateField("expectedDate", e.target.value)
-                    }
-                    className={inputClass(errors.expectedDate)}
-                  />
-                </Field>
-
-                <Field label="Actual Completion">
-                  <input
-                    type="date"
-                    value={form.actualCompletionDate}
-                    onChange={(e) =>
-                      updateField(
-                        "actualCompletionDate",
-                        e.target.value
-                      )
-                    }
-                    className={inputClass()}
-                  />
-                </Field>
-              </div>
-            </section>
-
-            {/* Raw Materials */}
-            <section>
-              <div className="mb-4 flex items-center justify-between">
-                <div>
-                  <h3 className="text-sm font-semibold text-slate-900">
-                    Raw Material Consumption
-                  </h3>
-
-                  <p className="mt-1 text-xs text-slate-400">
-                    Define required and consumed raw materials.
-                  </p>
+                    <Plus
+                      size={15}
+                    />
+                    Add Material
+                  </button>
                 </div>
 
-                <button
-                  type="button"
-                  onClick={addMaterial}
-                  className="flex items-center gap-2 rounded-xl border border-slate-200 px-3 py-2 text-xs font-medium text-slate-700 hover:bg-slate-50"
-                >
-                  <Plus size={15} />
-                  Add Material
-                </button>
-              </div>
+                <div className="overflow-x-auto rounded-xl border border-slate-200">
+                  <table className="w-full min-w-[950px]">
+                    <thead className="bg-slate-50">
+                      <tr>
+                        <Th>
+                          Material
+                        </Th>
 
-              <div className="overflow-x-auto rounded-xl border border-slate-200">
-                <table className="w-full min-w-[800px]">
-                  <thead>
-                    <tr className="bg-slate-50">
-                      <th className="px-4 py-3 text-left text-[11px] font-semibold uppercase tracking-wider text-slate-400">
-                        Raw Material
-                      </th>
+                        <Th>
+                          Available
+                        </Th>
 
-                      <th className="px-4 py-3 text-left text-[11px] font-semibold uppercase tracking-wider text-slate-400">
-                        Required
-                      </th>
+                        <Th>
+                          Required
+                        </Th>
 
-                      <th className="px-4 py-3 text-left text-[11px] font-semibold uppercase tracking-wider text-slate-400">
-                        Consumed
-                      </th>
+                        <Th>
+                          Consumed
+                        </Th>
 
-                      <th className="px-4 py-3 text-left text-[11px] font-semibold uppercase tracking-wider text-slate-400">
-                        Unit
-                      </th>
+                        <Th>
+                          Shortage
+                        </Th>
 
-                      <th className="w-12 px-4 py-3" />
-                    </tr>
-                  </thead>
-
-                  <tbody className="divide-y divide-slate-100">
-                    {form.rawMaterials.map((material) => (
-                      <tr key={material.id}>
-                        <td className="px-4 py-3">
-                          <select
-                            value={material.productId}
-                            onChange={(e) =>
-                              handleMaterialProductChange(
-                                material.id,
-                                e.target.value
-                              )
-                            }
-                            className={inputClass()}
-                          >
-                            <option value="">
-                              Select material
-                            </option>
-
-                            {products.map((product) => (
-                              <option
-                                key={product.id}
-                                value={product.id}
-                              >
-                                {product.name}
-                              </option>
-                            ))}
-                          </select>
-                        </td>
-
-                        <td className="px-4 py-3">
-                          <input
-                            type="number"
-                            min="0"
-                            value={material.requiredQuantity}
-                            onChange={(e) =>
-                              updateMaterial(
-                                material.id,
-                                "requiredQuantity",
-                                e.target.value
-                              )
-                            }
-                            placeholder="0"
-                            className={inputClass()}
-                          />
-                        </td>
-
-                        <td className="px-4 py-3">
-                          <input
-                            type="number"
-                            min="0"
-                            value={material.consumedQuantity}
-                            onChange={(e) =>
-                              updateMaterial(
-                                material.id,
-                                "consumedQuantity",
-                                e.target.value
-                              )
-                            }
-                            placeholder="0"
-                            className={inputClass()}
-                          />
-                        </td>
-
-                        <td className="px-4 py-3">
-                          <input
-                            type="text"
-                            value={material.unit}
-                            onChange={(e) =>
-                              updateMaterial(
-                                material.id,
-                                "unit",
-                                e.target.value
-                              )
-                            }
-                            className={inputClass()}
-                          />
-                        </td>
-
-                        <td className="px-4 py-3">
-                          <button
-                            type="button"
-                            onClick={() =>
-                              removeMaterial(material.id)
-                            }
-                            className="flex h-8 w-8 items-center justify-center rounded-lg text-slate-400 hover:bg-red-50 hover:text-red-600"
-                          >
-                            <Trash2 size={15} />
-                          </button>
-                        </td>
+                        <Th />
                       </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-            </section>
+                    </thead>
 
-            {/* Notes */}
-            <section>
+                    <tbody className="divide-y divide-slate-100">
+                      {form.rawMaterials.map(
+                        (
+                          material,
+                          index
+                        ) => {
+                          const product =
+                            materials.find(
+                              (item) =>
+                                String(
+                                  item.id ||
+                                    item._id
+                                ) ===
+                                String(
+                                  material.productId
+                                )
+                            );
+
+                          const available =
+                            Number(
+                              product?.availableQuantity ??
+                                product?.available ??
+                                0
+                            );
+
+                          const required =
+                            Number(
+                              material.requiredQuantity ||
+                                0
+                            );
+
+                          const shortage =
+                            Math.max(
+                              required -
+                                available,
+                              0
+                            );
+
+                          return (
+                            <tr
+                              key={
+                                index
+                              }
+                            >
+                              <td className="min-w-[260px] px-3 py-3">
+                                <select
+                                  value={
+                                    material.productId
+                                  }
+                                  onChange={(
+                                    event
+                                  ) =>
+                                    updateMaterial(
+                                      index,
+                                      "productId",
+                                      event.target.value
+                                    )
+                                  }
+                                  className={
+                                    inputClass
+                                  }
+                                >
+                                  <option value="">
+                                    Select material
+                                  </option>
+
+                                  {materials.map(
+                                    (item) => (
+                                      <option
+                                        key={
+                                          item.id ||
+                                          item._id
+                                        }
+                                        value={
+                                          item.id ||
+                                          item._id
+                                        }
+                                      >
+                                        {item.name} ({item.sku})
+                                      </option>
+                                    )
+                                  )}
+                                </select>
+                              </td>
+
+                              <td className="px-3 py-3 text-sm text-slate-700">
+                                {available.toLocaleString()}
+                                {" "}
+                                {product?.stockUnit ||
+                                  product?.unit ||
+                                  ""}
+                              </td>
+
+                              <td className="px-3 py-3">
+                                <NumberInput
+                                  value={
+                                    material.requiredQuantity
+                                  }
+                                  onChange={(
+                                    value
+                                  ) =>
+                                    updateMaterial(
+                                      index,
+                                      "requiredQuantity",
+                                      value
+                                    )
+                                  }
+                                />
+                              </td>
+
+                              <td className="px-3 py-3">
+                                <NumberInput
+                                  value={
+                                    material.consumedQuantity
+                                  }
+                                  onChange={(
+                                    value
+                                  ) =>
+                                    updateMaterial(
+                                      index,
+                                      "consumedQuantity",
+                                      value
+                                    )
+                                  }
+                                />
+                              </td>
+
+                              <td className="px-3 py-3">
+                                <span
+                                  className={
+                                    shortage >
+                                    0
+                                      ? "font-semibold text-red-600"
+                                      : "font-medium text-emerald-600"
+                                  }
+                                >
+                                  {shortage >
+                                  0
+                                    ? `${shortage} short`
+                                    : "Available"}
+                                </span>
+                              </td>
+
+                              <td className="px-3 py-3">
+                                <button
+                                  type="button"
+                                  disabled={
+                                    form.rawMaterials.length ===
+                                    1
+                                  }
+                                  onClick={() =>
+                                    setForm(
+                                      (current) => ({
+                                        ...current,
+
+                                        rawMaterials:
+                                          current.rawMaterials.filter(
+                                            (
+                                              _,
+                                              materialIndex
+                                            ) =>
+                                              materialIndex !==
+                                              index
+                                          ),
+                                      })
+                                    )
+                                  }
+                                  className="rounded-lg p-2 text-slate-400 hover:bg-red-50 hover:text-red-600 disabled:opacity-30"
+                                >
+                                  <Trash2
+                                    size={15}
+                                  />
+                                </button>
+                              </td>
+                            </tr>
+                          );
+                        }
+                      )}
+                    </tbody>
+                  </table>
+                </div>
+              </section>
+
               <Field label="Notes">
                 <textarea
                   rows={4}
-                  value={form.notes}
-                  onChange={(e) =>
-                    updateField("notes", e.target.value)
+                  value={
+                    form.notes
                   }
-                  placeholder="Add production notes..."
-                  className="w-full resize-none rounded-xl border border-slate-200 bg-white px-3 py-2.5 text-sm text-slate-800 outline-none transition placeholder:text-slate-400 focus:border-slate-400 focus:ring-2 focus:ring-slate-100"
+                  onChange={(
+                    event
+                  ) =>
+                    setField(
+                      "notes",
+                      event.target.value
+                    )
+                  }
+                  className="w-full resize-none rounded-xl border border-slate-200 p-3 text-sm outline-none"
                 />
               </Field>
-            </section>
-          </div>
+            </div>
 
-          <div className="flex items-center justify-end gap-3 border-t border-slate-100 bg-slate-50/70 px-6 py-4">
-            <button
-              type="button"
-              onClick={onClose}
-              className="rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-sm font-medium text-slate-700 hover:bg-slate-50"
-            >
-              Cancel
-            </button>
+            <div className="flex justify-end gap-3 border-t border-slate-100 bg-slate-50 px-6 py-4">
+              <button
+                type="button"
+                disabled={
+                  submitting
+                }
+                onClick={
+                  onClose
+                }
+                className="rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-sm font-medium"
+              >
+                Cancel
+              </button>
 
-            <button
-              type="submit"
-              className="rounded-xl bg-slate-900 px-5 py-2.5 text-sm font-medium text-white shadow-sm hover:bg-slate-800"
-            >
-              {production ? "Save Changes" : "Create Production"}
-            </button>
-          </div>
-        </form>
+              <button
+                type="submit"
+                disabled={
+                  submitting ||
+                  loading
+                }
+                className="rounded-xl bg-slate-900 px-5 py-2.5 text-sm font-medium text-white disabled:opacity-50"
+              >
+                {submitting
+                  ? "Saving..."
+                  : production
+                    ? "Update Production"
+                    : "Create Production"}
+              </button>
+            </div>
+          </form>
+        </div>
       </div>
-    </div>
+
+      {quickProductOpen && (
+        <QuickFinishedProductModal
+          initialName={
+            quickProductName
+          }
+
+          saving={
+            quickProductSaving
+          }
+
+          onClose={() => {
+            setQuickProductOpen(
+              false
+            );
+
+            setQuickProductName(
+              ""
+            );
+          }}
+
+          onSave={async (
+            payload
+          ) => {
+            try {
+              setQuickProductSaving(
+                true
+              );
+
+              const product =
+                await onCreateFinishedProduct(
+                  payload
+                );
+
+              setField(
+                "productId",
+                product.id ||
+                  product._id
+              );
+
+              setQuickProductOpen(
+                false
+              );
+
+              setQuickProductName(
+                ""
+              );
+            } finally {
+              setQuickProductSaving(
+                false
+              );
+            }
+          }}
+        />
+      )}
+    </>
   );
 }
 
-function Field({ label, required, error, children }) {
+function Field({
+  label,
+  children,
+}) {
   return (
     <div>
-      <label className="mb-2 block text-xs font-medium text-slate-600">
+      <label className="mb-1.5 block text-xs font-medium text-slate-600">
         {label}
-        {required && <span className="ml-1 text-red-500">*</span>}
       </label>
 
       {children}
-
-      {error && (
-        <p className="mt-1.5 text-xs text-red-500">
-          {error}
-        </p>
-      )}
     </div>
   );
 }
 
-function inputClass(error) {
-  return `h-10 w-full rounded-xl border ${
-    error ? "border-red-300" : "border-slate-200"
-  } bg-white px-3 text-sm text-slate-800 outline-none transition placeholder:text-slate-400 focus:border-slate-400 focus:ring-2 focus:ring-slate-100`;
+function Th({
+  children,
+}) {
+  return (
+    <th className="px-3 py-3 text-left text-[10px] font-semibold uppercase tracking-wider text-slate-400">
+      {children}
+    </th>
+  );
 }
+
+function NumberInput({
+  value,
+  onChange,
+}) {
+  return (
+    <input
+      type="number"
+      min="0"
+      step="0.01"
+      value={
+        value
+      }
+      onChange={(
+        event
+      ) =>
+        onChange(
+          event.target.value
+        )
+      }
+      className="h-10 w-28 rounded-xl border border-slate-200 bg-white px-3 text-sm outline-none"
+    />
+  );
+}
+
+const inputClass =
+  "h-10 w-full rounded-xl border border-slate-200 bg-white px-3 text-sm text-slate-800 outline-none focus:border-slate-400";

@@ -74,7 +74,7 @@ export default function Sidebar({
             {!collapsed && (
               <div className="overflow-hidden">
                 <p className="truncate text-[15px] font-semibold tracking-tight text-slate-900">
-                  SAVVY ERP
+                  BHAVESH GLASS ERP
                 </p>
 
                 <p className="text-[11px] text-slate-400">Administration</p>

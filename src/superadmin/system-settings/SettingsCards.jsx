@@ -18,7 +18,7 @@ const AppearanceCard = ({ theme, onSelect, saving }) => {
 
   return (
     <section className="rounded-2xl border border-slate-200 bg-white p-5 sm:p-6">
-      <h2 className="flex items-center gap-2 text-base font-semibold text-slate-950">
+      <h2 className="flex items-center dark:text-[#f8fafc] gap-2 text-base font-semibold text-slate-950">
         <Sun size={18} className="text-slate-500" />
         Appearance
       </h2>
@@ -39,7 +39,7 @@ const AppearanceCard = ({ theme, onSelect, saving }) => {
               className={`flex items-start gap-3 rounded-2xl border p-4 text-left transition active:scale-[0.99] disabled:cursor-not-allowed ${
                 isActive
                   ? "border-slate-900 bg-slate-900 text-white"
-                  : "border-slate-200 bg-white text-slate-950 hover:border-slate-400"
+                  : "border-slate-200 bg-white text-slate-950 dark:text-[#f8fafc] hover:border-slate-400"
               }`}
             >
               <span
@@ -69,7 +69,7 @@ const AppearanceCard = ({ theme, onSelect, saving }) => {
 
 const TermsCard = ({ terms, onChange, onSave, saving, max }) => (
   <section className="rounded-2xl border border-slate-200 bg-white p-5 sm:p-6">
-    <h2 className="flex items-center gap-2 text-base font-semibold text-slate-950">
+    <h2 className="flex items-center gap-2 text-base font-semibold text-slate-950 dark:text-[#f8fafc]">
       <FileText size={18} className="text-slate-500" />
       Terms &amp; Conditions
     </h2>
@@ -82,7 +82,7 @@ const TermsCard = ({ terms, onChange, onSave, saving, max }) => (
       onChange={(event) => onChange(event.target.value.slice(0, max))}
       rows={7}
       placeholder="Enter the default billing terms and conditions..."
-      className="mt-4 w-full resize-y rounded-xl border border-slate-200 bg-white px-4 py-3 text-sm leading-6 text-slate-950 outline-none transition placeholder:text-slate-400 focus:border-slate-500 focus:ring-2 focus:ring-slate-900/5"
+      className="mt-4 w-full resize-y rounded-xl border border-slate-200 bg-white px-4 py-3 text-sm leading-6 text-slate-950 dark:text-[#f8fafc] outline-none transition placeholder:text-slate-400 focus:border-slate-500 focus:ring-2 focus:ring-slate-900/5"
     />
 
     <div className="mt-3 flex flex-wrap items-center justify-between gap-3">

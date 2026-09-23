@@ -46,7 +46,7 @@ export default function AccessControlHeader({
 
           </div>
 
-          <h1 className="text-2xl font-semibold tracking-tight text-slate-950 sm:text-3xl">
+          <h1 className="text-2xl font-semibold tracking-tight text-slate-950 dark:text-[#f8fafc] sm:text-3xl">
             Access Control
           </h1>
 

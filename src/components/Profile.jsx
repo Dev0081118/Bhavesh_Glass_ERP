@@ -27,7 +27,12 @@ export default function Profile({ onLogout, user = defaultProfile, profileAccess
     setCurrentPassword("");
     setNewPassword("");
   };
-
+  const initials = profile.name
+  .trim()
+  .split(/\s+/)
+  .map((part) => part[0])
+  .join("")
+  .toUpperCase();
   return (
     <div className="relative">
       <button
@@ -38,7 +43,7 @@ export default function Profile({ onLogout, user = defaultProfile, profileAccess
         className="flex items-center gap-3 rounded-xl px-2 py-1.5 transition hover:bg-slate-50"
       >
         <div className="flex h-9 w-9 items-center justify-center rounded-full bg-slate-900 text-xs font-semibold text-white">
-          SA
+          {initials}
         </div>
 
         <div className="hidden text-left sm:block">

@@ -16,7 +16,7 @@ const StampCard = ({
     <section className="rounded-2xl border border-slate-200 bg-white p-5 sm:p-6">
       <div className="flex flex-col justify-between gap-4 sm:flex-row sm:items-start">
         <div>
-          <h2 className="flex items-center gap-2 text-base font-semibold text-slate-950">
+          <h2 className="flex items-center gap-2 text-base font-semibold dark:text-[#f8fafc] text-slate-950">
             <ImageIcon size={18} className="text-slate-500" />
             Company Stamp / Signature
           </h2>

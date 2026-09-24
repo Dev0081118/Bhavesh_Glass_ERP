@@ -1,5 +1,4 @@
-const mongoose =
-  require("mongoose");
+const mongoose = require("mongoose");
 
 const {
   Customer,
@@ -9,9 +8,7 @@ const {
 
 const {
   normalizePhone,
-} = require(
-  "../utils/phone"
-);
+} = require("../utils/phone");
 
 const {
   buildOwnershipFilter,
@@ -20,155 +17,198 @@ const {
   "../services/dataScopeService"
 );
 
-const uniqueIds =
-  (values = []) =>
-    [
-      ...new Set(
-        values.map(
-          String
-        )
-      ),
-    ];
+const uniqueIds = (
+  values = []
+) => [
+  ...new Set(
+    values.map(String)
+  ),
+];
 
-const validateIds =
-  (ids) =>
-    ids.every(
-      (id) =>
-        mongoose.isValidObjectId(
-          id
-        )
-    );
+const validateIds = (
+  ids = []
+) =>
+  ids.every((id) =>
+    mongoose.isValidObjectId(
+      id
+    )
+  );
 
-const serializeCustomer =
-  (customer) => ({
-    id:
-      customer._id.toString(),
+/*
+ * ============================================
+ * CUSTOMER SERIALIZER
+ * ============================================
+ */
 
-    name:
-      customer.name,
+const serializeCustomer = (
+  customer
+) => ({
+  id:
+    customer._id.toString(),
 
-    companyName:
-      customer.companyName ||
-      "",
+  name:
+    customer.name,
 
-    phone:
-      customer.phone,
+  companyName:
+    customer.companyName ||
+    "",
 
-    email:
-      customer.email ||
-      "",
+  phone:
+    customer.phone,
 
-    assignedTo:
-      customer.assignedTo
-        ? {
-            id:
-              customer
-                .assignedTo
-                ._id?.toString() ||
-              customer.assignedTo.toString(),
+  email:
+    customer.email ||
+    "",
 
-            name:
-              customer
-                .assignedTo
-                .name ||
-              "",
-          }
-        : null,
-  });
+  assignedTo:
+    customer.assignedTo
+      ? {
+          id:
+            customer
+              .assignedTo
+              ._id?.toString() ||
+            customer.assignedTo.toString(),
+
+          name:
+            customer
+              .assignedTo
+              .name ||
+            "",
+        }
+      : null,
+});
+
+/*
+ * ============================================
+ * PRODUCT SERIALIZER
+ * ============================================
+ *
+ * IMPORTANT:
+ *
+ * Previously every base64 product image was
+ * sent to n8n.
+ *
+ * That caused multi-MB webhook requests.
+ *
+ * We now send ONLY the primary/first image.
+ *
+ * The "images" array structure is preserved
+ * for n8n backward compatibility.
+ */
 
 const serializeProductForWhatsApp =
-  (product) => ({
-    id:
-      product._id.toString(),
-
-    name:
-      product.name,
-
-    sku:
-      product.sku,
-
-    category:
-      product.category ||
-      "",
-
-    subCategory:
-      product.subCategory ||
-      "",
-
-    type:
-      product.type ||
-      "",
-
-    material:
-      product.material ||
-      "",
-
-    description:
-      product.description ||
-      "",
-
-    sellingPrice:
-      Number(
-        product.sellingPrice ||
-          0
-      ),
-
-    wholesalePrice:
-      Number(
-        product.wholesalePrice ||
-          0
-      ),
-
-    gst:
-      Number(
-        product.gst ||
-          0
-      ),
-
-    hsnCode:
-      product.hsnCode ||
-      "",
-
-    images: (
-      product.media ||
-      []
-    )
-      .filter(
+  (product) => {
+    const primaryImage =
+      (
+        product.media ||
+        []
+      ).find(
         (item) =>
+          item &&
           item.type ===
-          "image"
-      )
-      .map(
-        (item) => ({
-          fileName:
-            item.fileName,
+            "image" &&
+          item.dataUrl
+      );
 
-          mimeType:
-            item.mimeType,
+    return {
+      id:
+        product._id.toString(),
 
-          dataUrl:
-            item.dataUrl,
-        })
-      ),
-  });
+      name:
+        product.name,
 
-const getCustomerScope =
-  (user) =>
-    buildOwnershipFilter(
-      user,
-      {
-        ownershipFields: [
-          "createdBy",
-          "assignedTo",
-        ],
-      }
-    );
+      sku:
+        product.sku,
+
+      category:
+        product.category ||
+        "",
+
+      subCategory:
+        product.subCategory ||
+        "",
+
+      type:
+        product.type ||
+        "",
+
+      material:
+        product.material ||
+        "",
+
+      description:
+        product.description ||
+        "",
+
+      sellingPrice:
+        Number(
+          product.sellingPrice ||
+            0
+        ),
+
+      wholesalePrice:
+        Number(
+          product.wholesalePrice ||
+            0
+        ),
+
+      gst:
+        Number(
+          product.gst ||
+            0
+        ),
+
+      hsnCode:
+        product.hsnCode ||
+        "",
+
+      images:
+        primaryImage
+          ? [
+              {
+                fileName:
+                  primaryImage.fileName ||
+                  "",
+
+                mimeType:
+                  primaryImage.mimeType ||
+                  "",
+
+                dataUrl:
+                  primaryImage.dataUrl,
+              },
+            ]
+          : [],
+    };
+  };
+
+/*
+ * ============================================
+ * ROLE BASED CUSTOMER SCOPE
+ * ============================================
+ */
+
+const getCustomerScope = (
+  user
+) =>
+  buildOwnershipFilter(
+    user,
+    {
+      ownershipFields: [
+        "createdBy",
+        "assignedTo",
+      ],
+    }
+  );
+
+/*
+ * ============================================
+ * CUSTOMERS
+ * ============================================
+ */
 
 const listWhatsAppCustomers =
-  async (
-    req,
-    res
-  ) => {
+  async (req, res) => {
     try {
       const scope =
         await getCustomerScope(
@@ -193,8 +233,7 @@ const listWhatsAppCustomers =
             "name role department status"
           )
           .sort({
-            name:
-              1,
+            name: 1,
           });
 
       return res.json({
@@ -202,6 +241,11 @@ const listWhatsAppCustomers =
           customers,
       });
     } catch (error) {
+      console.error(
+        "listWhatsAppCustomers error:",
+        error
+      );
+
       return res
         .status(500)
         .json({
@@ -211,11 +255,19 @@ const listWhatsAppCustomers =
     }
   };
 
+/*
+ * ============================================
+ * PRODUCTS
+ * ============================================
+ *
+ * Keep your local inventory/filter enrichment
+ * here if you already added it.
+ *
+ * This endpoint is NOT the n8n payload.
+ */
+
 const listWhatsAppProducts =
-  async (
-    req,
-    res
-  ) => {
+  async (req, res) => {
     try {
       const products =
         await Product.find({
@@ -237,13 +289,16 @@ const listWhatsAppProducts =
               "description",
               "media",
               "status",
-            ].join(
-              " "
-            )
+              "isFrame",
+              "frameSize",
+              "unit",
+              "stockUnit",
+              "minimumStockLevel",
+              "location",
+            ].join(" ")
           )
           .sort({
-            name:
-              1,
+            name: 1,
           });
 
       return res.json({
@@ -251,6 +306,11 @@ const listWhatsAppProducts =
           products,
       });
     } catch (error) {
+      console.error(
+        "listWhatsAppProducts error:",
+        error
+      );
+
       return res
         .status(500)
         .json({
@@ -260,11 +320,14 @@ const listWhatsAppProducts =
     }
   };
 
+/*
+ * ============================================
+ * SHARE HISTORY
+ * ============================================
+ */
+
 const listShares =
-  async (
-    req,
-    res
-  ) => {
+  async (req, res) => {
     try {
       const scope =
         await buildOwnershipFilter(
@@ -296,15 +359,18 @@ const listShares =
             createdAt:
               -1,
           })
-          .limit(
-            50
-          );
+          .limit(50);
 
       return res.json({
         data:
           shares,
       });
     } catch (error) {
+      console.error(
+        "listShares error:",
+        error
+      );
+
       return res
         .status(500)
         .json({
@@ -314,13 +380,28 @@ const listShares =
     }
   };
 
+/*
+ * ============================================
+ * SHARE PRODUCTS
+ * ============================================
+ */
+
 const shareProducts =
-  async (
-    req,
-    res
-  ) => {
+  async (req, res) => {
     let shareRecord =
       null;
+
+    console.log(
+      "\n======================================"
+    );
+
+    console.log(
+      "WHATSAPP SHARE CONTROLLER HIT"
+    );
+
+    console.log(
+      "======================================"
+    );
 
     try {
       const {
@@ -328,6 +409,10 @@ const shareProducts =
         productIds,
       } =
         req.body || {};
+
+      /*
+       * Make sure frontend sends IDs only.
+       */
 
       if (
         !Array.isArray(
@@ -359,6 +444,34 @@ const shareProducts =
           });
       }
 
+      const invalidCustomerObject =
+        customerIds.some(
+          (item) =>
+            item !== null &&
+            typeof item ===
+              "object"
+        );
+
+      const invalidProductObject =
+        productIds.some(
+          (item) =>
+            item !== null &&
+            typeof item ===
+              "object"
+        );
+
+      if (
+        invalidCustomerObject ||
+        invalidProductObject
+      ) {
+        return res
+          .status(400)
+          .json({
+            message:
+              "WhatsApp sharing requires customer IDs and product IDs only.",
+          });
+      }
+
       const cleanCustomerIds =
         uniqueIds(
           customerIds
@@ -368,6 +481,16 @@ const shareProducts =
         uniqueIds(
           productIds
         );
+
+      console.log(
+        "Customers selected:",
+        cleanCustomerIds.length
+      );
+
+      console.log(
+        "Products selected:",
+        cleanProductIds.length
+      );
 
       if (
         !validateIds(
@@ -384,6 +507,12 @@ const shareProducts =
               "One or more selected IDs are invalid.",
           });
       }
+
+      /*
+       * ======================================
+       * ROLE BASED CUSTOMER SECURITY
+       * ======================================
+       */
 
       const scope =
         await getCustomerScope(
@@ -444,7 +573,9 @@ const shareProducts =
             )
         );
 
-      if (invalidPhone) {
+      if (
+        invalidPhone
+      ) {
         return res
           .status(400)
           .json({
@@ -452,6 +583,16 @@ const shareProducts =
               `${invalidPhone.name} does not have a valid WhatsApp number.`,
           });
       }
+
+      /*
+       * ======================================
+       * PRODUCTS
+       * ======================================
+       *
+       * Load directly from Product.
+       *
+       * DO NOT reuse frontend enriched objects.
+       */
 
       const products =
         await Product.find({
@@ -476,6 +617,12 @@ const shareProducts =
           });
       }
 
+      /*
+       * ======================================
+       * HISTORY RECORD
+       * ======================================
+       */
+
       shareRecord =
         await WhatsAppShare.create({
           customers:
@@ -497,6 +644,12 @@ const shareProducts =
             products.length,
         });
 
+      /*
+       * ======================================
+       * WEBHOOK CONFIG
+       * ======================================
+       */
+
       const webhookUrl =
         process.env
           .N8N_WHATSAPP_WEBHOOK_URL;
@@ -517,6 +670,23 @@ const shareProducts =
               "WhatsApp automation is not configured.",
           });
       }
+
+      /*
+       * Do not print full webhook URL
+       * because configuration may contain
+       * sensitive information.
+       */
+
+      console.log(
+        "n8n webhook configured:",
+        true
+      );
+
+      /*
+       * ======================================
+       * BUILD PAYLOAD
+       * ======================================
+       */
 
       const payload = {
         event:
@@ -550,6 +720,52 @@ const shareProducts =
           ),
       };
 
+      const payloadJson =
+        JSON.stringify(
+          payload
+        );
+
+      const payloadBytes =
+        Buffer.byteLength(
+          payloadJson,
+          "utf8"
+        );
+
+      console.log(
+        "n8n payload:",
+        {
+          customers:
+            payload.customers.length,
+
+          products:
+            payload.products.length,
+
+          sizeMB:
+            (
+              payloadBytes /
+              1024 /
+              1024
+            ).toFixed(3),
+
+          images:
+            payload.products.map(
+              (product) => ({
+                sku:
+                  product.sku,
+
+                count:
+                  product.images.length,
+              })
+            ),
+        }
+      );
+
+      /*
+       * ======================================
+       * SEND TO N8N
+       * ======================================
+       */
+
       const controller =
         new AbortController();
 
@@ -557,7 +773,7 @@ const shareProducts =
         setTimeout(
           () =>
             controller.abort(),
-          20000
+          25000
         );
 
       let webhookResponse;
@@ -589,19 +805,68 @@ const shareProducts =
               headers,
 
               body:
-                JSON.stringify(
-                  payload
-                ),
+                payloadJson,
 
               signal:
                 controller.signal,
             }
           );
+      } catch (
+        fetchError
+      ) {
+        console.error(
+          "n8n network error:",
+          fetchError.name,
+          fetchError.message
+        );
+
+        if (
+          shareRecord
+        ) {
+          shareRecord.status =
+            "Failed";
+
+          shareRecord.errorMessage =
+            fetchError.name ===
+            "AbortError"
+              ? "WhatsApp automation timed out."
+              : fetchError.message;
+
+          await shareRecord.save();
+        }
+
+        if (
+          fetchError.name ===
+          "AbortError"
+        ) {
+          return res
+            .status(504)
+            .json({
+              message:
+                "WhatsApp automation timed out.",
+            });
+        }
+
+        return res
+          .status(502)
+          .json({
+            message:
+              "Unable to connect to WhatsApp automation.",
+
+            details:
+              fetchError.message,
+          });
       } finally {
         clearTimeout(
           timeout
         );
       }
+
+      /*
+       * ======================================
+       * READ N8N RESPONSE
+       * ======================================
+       */
 
       const responseText =
         await webhookResponse.text();
@@ -618,13 +883,29 @@ const shareProducts =
             : null;
       } catch {
         responseBody = {
-          message:
+          raw:
             responseText.slice(
               0,
-              1000
+              2000
             ),
         };
       }
+
+      console.log(
+        "N8N STATUS:",
+        webhookResponse.status
+      );
+
+      console.log(
+        "N8N RESPONSE:",
+        responseBody
+      );
+
+      /*
+       * ======================================
+       * N8N FAILURE
+       * ======================================
+       */
 
       if (
         !webhookResponse.ok
@@ -633,7 +914,7 @@ const shareProducts =
           "Failed";
 
         shareRecord.errorMessage =
-          "WhatsApp automation returned an error.";
+          `WhatsApp automation returned HTTP ${webhookResponse.status}.`;
 
         shareRecord.n8nResponse =
           responseBody;
@@ -645,8 +926,20 @@ const shareProducts =
           .json({
             message:
               "Unable to send products to WhatsApp automation.",
+
+            n8nStatus:
+              webhookResponse.status,
+
+            n8nResponse:
+              responseBody,
           });
       }
+
+      /*
+       * ======================================
+       * SUCCESS
+       * ======================================
+       */
 
       shareRecord.status =
         "Sent";
@@ -655,6 +948,10 @@ const shareProducts =
         responseBody;
 
       await shareRecord.save();
+
+      console.log(
+        "WhatsApp share completed successfully."
+      );
 
       return res.json({
         success:
@@ -675,7 +972,9 @@ const shareProducts =
         error
       );
 
-      if (shareRecord) {
+      if (
+        shareRecord
+      ) {
         try {
           shareRecord.status =
             "Failed";
@@ -684,7 +983,8 @@ const shareProducts =
             error.name ===
             "AbortError"
               ? "WhatsApp automation request timed out."
-              : "Unable to complete WhatsApp product sharing.";
+              : error.message ||
+                "Unable to complete WhatsApp product sharing.";
 
           await shareRecord.save();
         } catch (
@@ -710,10 +1010,13 @@ const shareProducts =
       }
 
       return res
-        .status(502)
+        .status(500)
         .json({
           message:
-            "Unable to send products to WhatsApp automation.",
+            "Unexpected WhatsApp sharing error.",
+
+          details:
+            error.message,
         });
     }
   };

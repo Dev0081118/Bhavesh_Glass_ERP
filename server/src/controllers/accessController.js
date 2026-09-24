@@ -1,7 +1,5 @@
-const bcrypt = require("bcrypt");
-const jwt = require("jsonwebtoken");
-const User = require("../models/User");
-const SystemSettings = require("../models/SystemSettings");
+const User =
+  require("../models/User");
 
 const defaultModules = [
   "dashboard",
@@ -19,380 +17,264 @@ const defaultModules = [
   "reports",
 ];
 
-const publicUser = (user) => ({
-  id: user._id,
-  name: user.name,
-  email: user.email,
-  phone: user.phone,
-  alternatePhone: user.alternatePhone,
-  role: user.role,
-  department: user.department,
-  status: user.status,
-  access:
-    user.access ||
-    User.defaultAccessForRole(user.role),
-});
+const publicAccessUser =
+  (user) => ({
+    id:
+      user._id,
 
-const createToken = (user) => {
-  if (!process.env.JWT_SECRET) {
-    throw new Error(
-      "JWT_SECRET is not configured"
-    );
-  }
+    userId:
+      user._id.toString(),
 
-  return jwt.sign(
-    {
-      userId: user._id.toString(),
-      role: user.role,
-    },
-    process.env.JWT_SECRET,
-    {
-      expiresIn:
-        process.env.JWT_EXPIRES_IN ||
-        "1d",
-    }
-  );
-};
+    name:
+      user.name,
 
-const createInitialPassword = (
-  phone,
-  dob
-) => {
-  const phoneDigits = String(phone).replace(
-    /\D/g,
-    ""
-  );
+    email:
+      user.email,
 
-  if (phoneDigits.length < 5) {
-    return null;
-  }
+    phone:
+      user.phone,
 
-  const date = new Date(dob);
+    alternatePhone:
+      user.alternatePhone,
 
-  if (Number.isNaN(date.getTime())) {
-    return null;
-  }
+    role:
+      user.role,
 
-  const day = String(
-    date.getUTCDate()
-  ).padStart(2, "0");
+    department:
+      user.department,
 
-  const month = String(
-    date.getUTCMonth() + 1
-  ).padStart(2, "0");
+    managerId:
+      user.manager?._id ||
+      user.manager ||
+      null,
 
-  const year = date.getUTCFullYear();
+    managerName:
+      user.manager &&
+      typeof user.manager ===
+        "object"
+        ? user.manager.name ||
+          null
+        : null,
 
-  return `${phoneDigits.slice(
-    -5
-  )}${day}${month}${year}`;
-};
+    status:
+      user.status,
 
-const register = async (req, res) => {
-  try {
-    const {
-      name,
-      email,
-      phone,
-      dob,
-      department,
-    } = req.body;
-
-    if (
-      !name ||
-      !email ||
-      !phone ||
-      !dob
-    ) {
-      return res.status(400).json({
-        message:
-          "Name, email, phone, and date of birth are required.",
-      });
-    }
-
-    const initialPassword =
-      createInitialPassword(
-        phone,
-        dob
-      );
-
-    if (!initialPassword) {
-      return res.status(400).json({
-        message:
-          "Phone must contain at least 5 digits and DOB must be valid.",
-      });
-    }
-
-    const normalizedEmail =
-      email.trim().toLowerCase();
-
-    const existingUser =
-      await User.findOne({
-        email: normalizedEmail,
-      });
-
-    if (existingUser) {
-      return res.status(409).json({
-        message:
-          "A user with this email already exists.",
-      });
-    }
-
-    const hashedPassword =
-      await bcrypt.hash(
-        initialPassword,
-        12
-      );
-
-    const user = await User.create({
-      name,
-      email: normalizedEmail,
-      password: hashedPassword,
-      phone,
-      dob: new Date(dob),
-      role: "Employee",
-      department,
-      status: "Active",
-      access:
-        User.defaultAccessForRole(
-          "Employee"
-        ),
-    });
-
-    return res.status(201).json({
-      message:
-        "User registered successfully. Initial password is based on the phone number and date of birth.",
-      user: publicUser(user),
-      token: createToken(user),
-    });
-  } catch (error) {
-    console.error(
-      "register error:",
-      error
-    );
-
-    return res.status(500).json({
-      message:
-        "Unable to register user.",
-    });
-  }
-};
-
-const login = async (req, res) => {
-  try {
-    const { email, password } =
-      req.body;
-
-    if (!email || !password) {
-      return res.status(400).json({
-        message:
-          "Email and password are required.",
-      });
-    }
-
-    const user =
-      await User.findOne({
-        email: email
-          .trim()
-          .toLowerCase(),
-      }).select("+password");
-
-    /*
-     * Inactive users cannot login.
-     */
-    if (
-      !user ||
-      user.status !== "Active"
-    ) {
-      return res.status(401).json({
-        code: "ACCOUNT_INACTIVE",
-        message:
-          "Invalid email or password.",
-      });
-    }
-
-    const isPasswordValid =
-      await bcrypt.compare(
-        password,
-        user.password
-      );
-
-    if (!isPasswordValid) {
-      return res.status(401).json({
-        message:
-          "Invalid email or password.",
-      });
-    }
-
-    /*
-     * Global ERP Kill Switch.
-     */
-    if (user.role !== "Super Admin") {
-      const settings =
-        await SystemSettings.findOne({
-          key: "global",
-        }).lean();
-
-      if (
-        settings &&
-        !settings.isSystemActive
-      ) {
-        return res.status(503).json({
-          code: "SYSTEM_MAINTENANCE",
-          message:
-            settings.reason ||
-            "The ERP system is temporarily unavailable.",
-        });
-      }
-    }
-
-    user.lastLoginAt = new Date();
-
-    await user.save();
-
-    return res.json({
-      message: "Login successful.",
-      user: publicUser(user),
-      token: createToken(user),
-    });
-  } catch (error) {
-    console.error(
-      "login error:",
-      error
-    );
-
-    return res.status(500).json({
-      message: "Unable to log in.",
-    });
-  }
-};
-
-const getCurrentUser = async (
-  req,
-  res
-) => {
-  return res.json({
-    user: publicUser(req.user),
+    access:
+      user.access ||
+      User.defaultAccessForRole(
+        user.role
+      ),
   });
-};
 
-/*
- * ============================================================
- * ACCESS CONTROL (used by /api/access routes)
- * ============================================================
- */
+const listUsers =
+  async (
+    req,
+    res
+  ) => {
+    try {
+      const users =
+        await User.find({
+          role: {
+            $ne:
+              "Super Admin",
+          },
+        })
+          .populate(
+            "manager",
+            "name"
+          )
+          .sort({
+            createdAt:
+              -1,
+          });
 
-const publicAccessUser = (user) => ({
-  ...publicUser(user),
-  userId: user._id.toString(),
-});
-
-/*
- * LIST USERS for the Access Control page.
- * Super Admin is excluded: their access is always full.
- */
-const listUsers = async (req, res) => {
-  try {
-    const users = await User.find({
-      role: { $ne: "Super Admin" },
-    }).sort({ createdAt: -1 });
-
-    return res.json({
-      users: users.map(publicAccessUser),
-    });
-  } catch (error) {
-    console.error("listUsers error:", error);
-
-    return res.status(500).json({
-      message: "Unable to load access users.",
-    });
-  }
-};
-
-/*
- * UPDATE a user's module/profile access.
- * Body: { modules: { dashboard: true, ... }, profile: { edit, resetPassword } }
- */
-const updateUserAccess = async (req, res) => {
-  try {
-    const { modules, profile } = req.body || {};
-
-    const user = await User.findOne({
-      _id: req.params.userId,
-      role: { $ne: "Super Admin" },
-    });
-
-    if (!user) {
-      return res.status(404).json({
-        message: "User not found.",
+      return res.json({
+        users:
+          users.map(
+            publicAccessUser
+          ),
       });
-    }
+    } catch (error) {
+      console.error(
+        "listUsers error:",
+        error
+      );
 
-    if (modules !== undefined) {
-      if (
-        typeof modules !== "object" ||
-        modules === null ||
-        Array.isArray(modules)
-      ) {
-        return res.status(400).json({
-          message: "modules must be an object of booleans.",
+      return res
+        .status(500)
+        .json({
+          message:
+            "Unable to load access users.",
         });
+    }
+  };
+
+const updateUserAccess =
+  async (
+    req,
+    res
+  ) => {
+    try {
+      const {
+        modules,
+        profile,
+      } =
+        req.body || {};
+
+      const user =
+        await User.findOne({
+          _id:
+            req.params.userId,
+
+          role: {
+            $ne:
+              "Super Admin",
+          },
+        });
+
+      if (!user) {
+        return res
+          .status(404)
+          .json({
+            message:
+              "User not found.",
+          });
       }
 
-      const sanitized = {};
-
-      for (const [key, value] of Object.entries(modules)) {
+      if (
+        modules !==
+        undefined
+      ) {
         if (
-          defaultModules.includes(String(key)) &&
-          typeof value === "boolean"
+          typeof modules !==
+            "object" ||
+          modules === null ||
+          Array.isArray(
+            modules
+          )
         ) {
-          sanitized[key] = value;
+          return res
+            .status(400)
+            .json({
+              message:
+                "modules must be an object of booleans.",
+            });
         }
+
+        const sanitized =
+          {};
+
+        for (
+          const [
+            key,
+            value,
+          ] of Object.entries(
+            modules
+          )
+        ) {
+          if (
+            defaultModules.includes(
+              String(key)
+            ) &&
+            typeof value ===
+              "boolean"
+          ) {
+            sanitized[
+              key
+            ] =
+              value;
+          }
+        }
+
+        /*
+         * Dashboard is always available to
+         * authenticated users.
+         */
+        sanitized.dashboard =
+          true;
+
+        user.set(
+          "access.modules",
+          sanitized
+        );
       }
 
-      user.set("access.modules", sanitized);
-    }
-
-    if (profile !== undefined) {
       if (
-        typeof profile !== "object" ||
-        profile === null ||
-        Array.isArray(profile)
+        profile !==
+        undefined
       ) {
-        return res.status(400).json({
-          message: "profile must be an object.",
-        });
+        if (
+          typeof profile !==
+            "object" ||
+          profile === null ||
+          Array.isArray(
+            profile
+          )
+        ) {
+          return res
+            .status(400)
+            .json({
+              message:
+                "profile must be an object.",
+            });
+        }
+
+        /*
+         * resetPassword now means privileged
+         * administrative reset capability.
+         *
+         * It is NOT used for self password changes.
+         */
+        user.access.profile =
+          {
+            view:
+              true,
+
+            edit:
+              Boolean(
+                profile.edit
+              ),
+
+            resetPassword:
+              Boolean(
+                profile.resetPassword
+              ),
+          };
       }
 
-      /*
-       * Viewing your own profile is always allowed.
-       */
-      user.access.profile = {
-        view: true,
-        edit: Boolean(profile.edit),
-        resetPassword: Boolean(profile.resetPassword),
-      };
+      await user.save();
+
+      const populated =
+        await User.findById(
+          user._id
+        ).populate(
+          "manager",
+          "name"
+        );
+
+      return res.json({
+        user:
+          publicAccessUser(
+            populated ||
+              user
+          ),
+      });
+    } catch (error) {
+      console.error(
+        "updateUserAccess error:",
+        error
+      );
+
+      return res
+        .status(500)
+        .json({
+          message:
+            "Unable to update access.",
+        });
     }
-
-    await user.save();
-
-    return res.json({
-      user: publicAccessUser(user),
-    });
-  } catch (error) {
-    console.error("updateUserAccess error:", error);
-
-    return res.status(500).json({
-      message: "Unable to update access.",
-    });
-  }
-};
+  };
 
 module.exports = {
-  register,
-  login,
-  getCurrentUser,
-  createInitialPassword,
   listUsers,
   updateUserAccess,
 };

@@ -1,6 +1,6 @@
 import RoleDashboard from "./RoleDashboard";
 
-export default function AdminDashboard({
+export default function EmployeeDashboard({
   user,
   token,
 }) {
@@ -9,9 +9,9 @@ export default function AdminDashboard({
       user={user}
       token={token}
       title={`Welcome, ${
-        user?.name || "Admin"
+        user?.name || "Employee"
       }`}
-      subtitle="Monitor company operations, department workload, tasks and operational bottlenecks."
+      subtitle="Your personal work queue, assigned tasks and records that need your attention."
     />
   );
 }

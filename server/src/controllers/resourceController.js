@@ -1,6 +1,14 @@
 const mongoose =
   require("mongoose");
 
+const {
+  buildOwnershipFilter,
+  mergeFilters,
+  enforceAssignmentScope,
+} = require(
+  "../services/dataScopeService"
+);
+
 const referenceMappings = {
   supplierId:
     "supplier",
@@ -31,6 +39,9 @@ const referenceMappings = {
 
   partyId:
     "party",
+
+  receivedById:
+    "receivedBy",
 };
 
 const normalizePayload =
@@ -41,6 +52,11 @@ const normalizePayload =
     const normalized = {
       ...payload,
     };
+
+    /*
+     * Never trust a client-supplied creator.
+     */
+    delete normalized.createdBy;
 
     Object.entries(
       referenceMappings
@@ -168,18 +184,61 @@ const applyPopulate =
     return result;
   };
 
+const assertWriteRole =
+  (
+    req,
+    options
+  ) => {
+    if (
+      !Array.isArray(
+        options.writeRoles
+      ) ||
+      options.writeRoles.length ===
+        0
+    ) {
+      return;
+    }
+
+    if (
+      !options.writeRoles.includes(
+        req.user.role
+      )
+    ) {
+      const error =
+        new Error(
+          "You do not have permission to modify this resource."
+        );
+
+      error.status =
+        403;
+
+      throw error;
+    }
+  };
+
 const createResourceController =
   (
     Model,
     options = {}
   ) => {
+    const getScopeFilter =
+      async (
+        req
+      ) =>
+        options.scopePolicy
+          ? buildOwnershipFilter(
+              req.user,
+              options.scopePolicy
+            )
+          : {};
+
     const populateDocument =
       async (
-        id
+        filter
       ) => {
         let query =
-          Model.findById(
-            id
+          Model.findOne(
+            filter
           );
 
         query =
@@ -197,12 +256,23 @@ const createResourceController =
         res
       ) => {
         try {
-          const filter =
+          const customFilter =
             options.listFilter
-              ? options.listFilter(
+              ? await options.listFilter(
                   req
                 )
               : {};
+
+          const scopeFilter =
+            await getScopeFilter(
+              req
+            );
+
+          const filter =
+            mergeFilters(
+              customFilter,
+              scopeFilter
+            );
 
           let query =
             Model.find(
@@ -226,8 +296,16 @@ const createResourceController =
               documents,
           });
         } catch (error) {
+          console.error(
+            "resource list error:",
+            error
+          );
+
           return res
-            .status(500)
+            .status(
+              error.status ||
+                500
+            )
             .json({
               message:
                 error.message ||
@@ -255,9 +333,20 @@ const createResourceController =
               });
           }
 
+          const scopeFilter =
+            await getScopeFilter(
+              req
+            );
+
           const document =
             await populateDocument(
-              req.params.id
+              mergeFilters(
+                {
+                  _id:
+                    req.params.id,
+                },
+                scopeFilter
+              )
             );
 
           if (!document) {
@@ -265,7 +354,7 @@ const createResourceController =
               .status(404)
               .json({
                 message:
-                  "Record not found.",
+                  "Record not found or you do not have access to it.",
               });
           }
 
@@ -275,10 +364,14 @@ const createResourceController =
           });
         } catch (error) {
           return res
-            .status(500)
+            .status(
+              error.status ||
+                500
+            )
             .json({
               message:
-                error.message,
+                error.message ||
+                "Unable to load record.",
             });
         }
       };
@@ -292,10 +385,26 @@ const createResourceController =
           null;
 
         try {
+          assertWriteRole(
+            req,
+            options
+          );
+
           let payload =
             normalizePayload(
               req.body,
               options
+            );
+
+          payload =
+            await enforceAssignmentScope(
+              req.user,
+              payload,
+              options.scopePolicy,
+              {
+                isCreate:
+                  true,
+              }
             );
 
           if (
@@ -336,9 +445,10 @@ const createResourceController =
           }
 
           const populated =
-            await populateDocument(
-              document._id
-            );
+            await populateDocument({
+              _id:
+                document._id,
+            });
 
           return res
             .status(201)
@@ -360,7 +470,10 @@ const createResourceController =
           }
 
           return res
-            .status(400)
+            .status(
+              error.status ||
+                400
+            )
             .json({
               message:
                 error.message ||
@@ -375,6 +488,11 @@ const createResourceController =
         res
       ) => {
         try {
+          assertWriteRole(
+            req,
+            options
+          );
+
           if (
             !mongoose.isValidObjectId(
               req.params.id
@@ -388,9 +506,20 @@ const createResourceController =
               });
           }
 
+          const scopeFilter =
+            await getScopeFilter(
+              req
+            );
+
           const previous =
-            await Model.findById(
-              req.params.id
+            await Model.findOne(
+              mergeFilters(
+                {
+                  _id:
+                    req.params.id,
+                },
+                scopeFilter
+              )
             );
 
           if (!previous) {
@@ -398,7 +527,7 @@ const createResourceController =
               .status(404)
               .json({
                 message:
-                  "Record not found.",
+                  "Record not found or you do not have access to it.",
               });
           }
 
@@ -406,6 +535,17 @@ const createResourceController =
             normalizePayload(
               req.body,
               options
+            );
+
+          payload =
+            await enforceAssignmentScope(
+              req.user,
+              payload,
+              options.scopePolicy,
+              {
+                isCreate:
+                  false,
+              }
             );
 
           if (
@@ -424,12 +564,14 @@ const createResourceController =
 
           const document =
             await Model.findByIdAndUpdate(
-              req.params.id,
+              previous._id,
 
               payload,
 
               {
-                new: true,
+                new:
+                  true,
+
                 runValidators:
                   true,
               }
@@ -453,6 +595,7 @@ const createResourceController =
                 _id:
                   previous._id,
               },
+
               previous.toObject()
             );
 
@@ -460,9 +603,10 @@ const createResourceController =
           }
 
           const populated =
-            await populateDocument(
-              document._id
-            );
+            await populateDocument({
+              _id:
+                document._id,
+            });
 
           return res.json({
             data:
@@ -471,7 +615,10 @@ const createResourceController =
           });
         } catch (error) {
           return res
-            .status(400)
+            .status(
+              error.status ||
+                400
+            )
             .json({
               message:
                 error.message ||
@@ -486,6 +633,11 @@ const createResourceController =
         res
       ) => {
         try {
+          assertWriteRole(
+            req,
+            options
+          );
+
           if (
             !mongoose.isValidObjectId(
               req.params.id
@@ -499,9 +651,20 @@ const createResourceController =
               });
           }
 
+          const scopeFilter =
+            await getScopeFilter(
+              req
+            );
+
           const document =
-            await Model.findById(
-              req.params.id
+            await Model.findOne(
+              mergeFilters(
+                {
+                  _id:
+                    req.params.id,
+                },
+                scopeFilter
+              )
             );
 
           if (!document) {
@@ -509,7 +672,7 @@ const createResourceController =
               .status(404)
               .json({
                 message:
-                  "Record not found.",
+                  "Record not found or you do not have access to it.",
               });
           }
 
@@ -539,7 +702,10 @@ const createResourceController =
           });
         } catch (error) {
           return res
-            .status(400)
+            .status(
+              error.status ||
+                400
+            )
             .json({
               message:
                 error.message ||

@@ -1,11 +1,24 @@
-import { useCallback, useMemo, useState } from "react";
+import {
+  useCallback,
+  useMemo,
+  useState,
+} from "react";
 
 import Sidebar from "../components/Sidebar";
 import Topbar from "../components/Topbar";
+
 import AdminDashboard from "../components/AdminDashboard";
-import { normalizeAccess } from "../data/accessControl";
+import ManagerDashboard from "../components/ManagerDashboard";
+import EmployeeDashboard from "../components/EmployeeDashboard";
+
+import {
+  normalizeAccess,
+} from "../data/accessControl";
+
 import AccessDenied from "./AccessDenied";
+
 import SuperAdminDashboard from "./dashboard/SuperAdminDashboard";
+
 import {
   DASHBOARD_SECTION,
   canViewSection,
@@ -14,80 +27,243 @@ import {
   visibleSectionsFor,
 } from "./routes";
 
-/**
- * Application shell for every authenticated role.
- *
- * Responsibilities (and nothing else):
- *  1. hold the active section + sidebar state
- *  2. resolve the active section against the routes registry
- *  3. apply that section's access guard
- *  4. render the layout
- *
- * Section ids, labels, icons, ordering, guards and components all live in ./routes.js
- * so navigation and routing can never disagree.
- */
-export default function SuperAdminPanel({ onLogout, user, token }) {
-  const [activeSection, setActiveSection] = useState(DASHBOARD_SECTION);
-  const [isSidebarOpen, setIsSidebarOpen] = useState(false);
-
-  const isSuperAdmin = user?.role === "Super Admin";
-  const access = useMemo(() => normalizeAccess(user), [user]);
-  const modules = access.modules;
-
-  const canAccessModule = useCallback(
-    (moduleId) => isSuperAdmin || Boolean(modules?.[moduleId]),
-    [isSuperAdmin, modules]
+export default function SuperAdminPanel({
+  onLogout,
+  user,
+  token,
+}) {
+  const [
+    activeSection,
+    setActiveSection,
+  ] = useState(
+    DASHBOARD_SECTION
   );
 
-  const navigate = useCallback((sectionId) => {
-    setActiveSection(sectionId || DASHBOARD_SECTION);
-    setIsSidebarOpen(false);
-  }, []);
-
-  const section = findSection(activeSection);
-  const isAllowed = canViewSection(section, { isSuperAdmin, canAccessModule });
-
-  const groups = useMemo(
-    () => groupSections(visibleSectionsFor({ isSuperAdmin, canAccessModule })),
-    [isSuperAdmin, canAccessModule]
+  const [
+    isSidebarOpen,
+    setIsSidebarOpen,
+  ] = useState(
+    false
   );
 
-  const renderSection = () => {
-    if (!isAllowed) {
-      return <AccessDenied onBack={() => navigate(DASHBOARD_SECTION)} />;
-    }
+  const isSuperAdmin =
+    user?.role ===
+    "Super Admin";
 
-    const sharedProps = { user, token, permissions: modules, onNavigate: navigate };
+  const access =
+    useMemo(
+      () =>
+        normalizeAccess(
+          user
+        ),
+      [
+        user,
+      ]
+    );
 
-    if (section.id === DASHBOARD_SECTION) {
-      const Dashboard = isSuperAdmin ? SuperAdminDashboard : AdminDashboard;
-      return <Dashboard {...sharedProps} />;
-    }
+  const modules =
+    access.modules;
 
-    const Section = section.Element;
-    return <Section {...sharedProps} />;
-  };
+  const canAccessModule =
+    useCallback(
+      (
+        moduleId
+      ) =>
+        isSuperAdmin ||
+        Boolean(
+          modules?.[
+            moduleId
+          ]
+        ),
+
+      [
+        isSuperAdmin,
+        modules,
+      ]
+    );
+
+  const navigate =
+    useCallback(
+      (
+        sectionId
+      ) => {
+        setActiveSection(
+          sectionId ||
+            DASHBOARD_SECTION
+        );
+
+        setIsSidebarOpen(
+          false
+        );
+      },
+      []
+    );
+
+  const section =
+    findSection(
+      activeSection
+    );
+
+  const isAllowed =
+    canViewSection(
+      section,
+      {
+        isSuperAdmin,
+        canAccessModule,
+      }
+    );
+
+  const groups =
+    useMemo(
+      () =>
+        groupSections(
+          visibleSectionsFor({
+            isSuperAdmin,
+            canAccessModule,
+          })
+        ),
+
+      [
+        isSuperAdmin,
+        canAccessModule,
+      ]
+    );
+
+  const renderDashboard =
+    () => {
+      const shared = {
+        user,
+        token,
+        permissions:
+          modules,
+        onNavigate:
+          navigate,
+      };
+
+      switch (
+        user?.role
+      ) {
+        case "Super Admin":
+          return (
+            <SuperAdminDashboard
+              {...shared}
+            />
+          );
+
+        case "Admin":
+          return (
+            <AdminDashboard
+              {...shared}
+            />
+          );
+
+        case "Manager":
+          return (
+            <ManagerDashboard
+              {...shared}
+            />
+          );
+
+        case "Employee":
+          return (
+            <EmployeeDashboard
+              {...shared}
+            />
+          );
+
+        default:
+          return (
+            <AccessDenied />
+          );
+      }
+    };
+
+  const renderSection =
+    () => {
+      if (!isAllowed) {
+        return (
+          <AccessDenied
+            onBack={() =>
+              navigate(
+                DASHBOARD_SECTION
+              )
+            }
+          />
+        );
+      }
+
+      if (
+        section.id ===
+        DASHBOARD_SECTION
+      ) {
+        return renderDashboard();
+      }
+
+      const Section =
+        section.Element;
+
+      return (
+        <Section
+          user={
+            user
+          }
+          token={
+            token
+          }
+          permissions={
+            modules
+          }
+          onNavigate={
+            navigate
+          }
+        />
+      );
+    };
 
   return (
     <div className="flex h-screen overflow-hidden bg-slate-50">
       <Sidebar
-        activeSection={activeSection}
-        setActiveSection={navigate}
-        groups={groups}
-        mobileOpen={isSidebarOpen}
-        onMobileClose={() => setIsSidebarOpen(false)}
+        activeSection={
+          activeSection
+        }
+        setActiveSection={
+          navigate
+        }
+        groups={
+          groups
+        }
+        mobileOpen={
+          isSidebarOpen
+        }
+        onMobileClose={() =>
+          setIsSidebarOpen(
+            false
+          )
+        }
       />
 
       <div className="flex min-w-0 flex-1 flex-col">
         <Topbar
-          onLogout={onLogout}
-          user={user}
-          profileAccess={access.profile}
-          onMenuOpen={() => setIsSidebarOpen(true)}
+          onLogout={
+            onLogout
+          }
+          user={
+            user
+          }
+          token={
+            token
+          }
+          onMenuOpen={() =>
+            setIsSidebarOpen(
+              true
+            )
+          }
         />
 
         <main className="min-w-0 flex-1 overflow-y-auto p-3 sm:p-6 lg:p-8">
-          <div className="mx-auto max-w-[1600px]">{renderSection()}</div>
+          <div className="mx-auto max-w-[1600px]">
+            {renderSection()}
+          </div>
         </main>
       </div>
     </div>

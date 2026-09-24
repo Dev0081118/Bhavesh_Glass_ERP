@@ -452,3 +452,129 @@ export const getProductionLookups = (
       token,
     }
   );
+  /*
+ * ========================================
+ * PASSWORD
+ * ========================================
+ */
+
+export const changePassword = (
+  token,
+  currentPassword,
+  newPassword,
+  confirmPassword
+) =>
+  request(
+    "/auth/change-password",
+    {
+      method:
+        "PATCH",
+
+      token,
+
+      body:
+        JSON.stringify({
+          currentPassword,
+          newPassword,
+          confirmPassword,
+        }),
+    }
+  );
+
+/*
+ * ========================================
+ * ROLE DASHBOARD
+ * ========================================
+ */
+
+export const getRoleDashboard = (
+  token,
+  range = "30d"
+) =>
+  request(
+    `/dashboard/role-summary?range=${encodeURIComponent(
+      range
+    )}`,
+    {
+      token,
+    }
+  );
+
+/*
+ * ========================================
+ * TASKS
+ * ========================================
+ */
+
+export const listTasks = (
+  token
+) =>
+  request(
+    "/tasks",
+    {
+      token,
+    }
+  );
+
+export const getTaskAssignees = (
+  token
+) =>
+  request(
+    "/tasks/assignees",
+    {
+      token,
+    }
+  );
+
+export const createTask = (
+  token,
+  data
+) =>
+  request(
+    "/tasks",
+    {
+      method:
+        "POST",
+
+      token,
+
+      body:
+        JSON.stringify(
+          data
+        ),
+    }
+  );
+
+export const updateTask = (
+  token,
+  taskId,
+  data
+) =>
+  request(
+    `/tasks/${taskId}`,
+    {
+      method:
+        "PATCH",
+
+      token,
+
+      body:
+        JSON.stringify(
+          data
+        ),
+    }
+  );
+
+export const deleteTask = (
+  token,
+  taskId
+) =>
+  request(
+    `/tasks/${taskId}`,
+    {
+      method:
+        "DELETE",
+
+      token,
+    }
+  );

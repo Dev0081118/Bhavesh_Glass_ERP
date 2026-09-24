@@ -14,6 +14,12 @@ const {
 );
 
 const {
+  requireRole,
+} = require(
+  "../middleware/roleMiddleware"
+);
+
+const {
   createResourceController,
 } = require(
   "../controllers/resourceController"
@@ -38,7 +44,6 @@ const inventoryController =
 const {
   getPurchaseLookups,
   createPurchaseSupplier,
-
   getProductionLookups,
   createProductionFinishedProduct,
 } = require(
@@ -68,7 +73,9 @@ const {
 const router =
   express.Router();
 
-router.use(protect);
+router.use(
+  protect
+);
 
 /* =========================================================
    BILLING SNAPSHOT
@@ -126,6 +133,13 @@ const captureBillingSnapshot =
 
 /* =========================================================
    PRODUCT
+   Shared master data.
+
+   READ:
+   anybody with Product module.
+
+   WRITE:
+   Manager/Admin/Super Admin.
 ========================================================= */
 
 const productRouter =
@@ -149,16 +163,31 @@ productRouter.get(
 
 productRouter.post(
   "/",
+  requireRole(
+    "Super Admin",
+    "Admin",
+    "Manager"
+  ),
   productController.createProduct
 );
 
 productRouter.patch(
   "/:id",
+  requireRole(
+    "Super Admin",
+    "Admin",
+    "Manager"
+  ),
   productController.updateProduct
 );
 
 productRouter.delete(
   "/:id",
+  requireRole(
+    "Super Admin",
+    "Admin",
+    "Manager"
+  ),
   productController.deleteProduct
 );
 
@@ -169,6 +198,8 @@ router.use(
 
 /* =========================================================
    INVENTORY
+   GLOBAL READ for anyone with module access.
+   Mutations restricted.
 ========================================================= */
 
 const inventoryRouter =
@@ -192,11 +223,21 @@ inventoryRouter.get(
 
 inventoryRouter.post(
   "/:id/movement",
+  requireRole(
+    "Super Admin",
+    "Admin",
+    "Manager"
+  ),
   inventoryController.moveStock
 );
 
 inventoryRouter.post(
   "/:id/adjust",
+  requireRole(
+    "Super Admin",
+    "Admin",
+    "Manager"
+  ),
   inventoryController.adjustInventory
 );
 
@@ -211,8 +252,7 @@ router.use(
 );
 
 /* =========================================================
-   PURCHASE STATIC ROUTES
-   MUST STAY BEFORE GENERIC /purchases/:id
+   PURCHASE LOOKUPS
 ========================================================= */
 
 router.get(
@@ -236,8 +276,7 @@ router.post(
 );
 
 /* =========================================================
-   PRODUCTION STATIC ROUTES
-   MUST STAY BEFORE GENERIC /production/:id
+   PRODUCTION LOOKUPS
 ========================================================= */
 
 router.get(
@@ -261,69 +300,85 @@ router.post(
 );
 
 /* =========================================================
-   GENERIC RESOURCE
+   GENERIC RESOURCE BUILDER
 ========================================================= */
 
-const mountResource = (
-  path,
-  moduleName,
-  Model,
-  options = {}
-) => {
-  const controller =
-    createResourceController(
-      Model,
-      options
+const mountResource =
+  (
+    path,
+    moduleName,
+    Model,
+    options = {}
+  ) => {
+    const controller =
+      createResourceController(
+        Model,
+        options
+      );
+
+    const resource =
+      express.Router();
+
+    resource.use(
+      requireModuleAccess(
+        moduleName
+      )
     );
 
-  const resource =
-    express.Router();
+    resource.get(
+      "/",
+      controller.list
+    );
 
-  resource.use(
-    requireModuleAccess(
-      moduleName
-    )
-  );
+    resource.post(
+      "/",
+      controller.create
+    );
 
-  resource.get(
-    "/",
-    controller.list
-  );
+    resource.get(
+      "/:id",
+      controller.getOne
+    );
 
-  resource.post(
-    "/",
-    controller.create
-  );
+    resource.patch(
+      "/:id",
+      controller.update
+    );
 
-  resource.get(
-    "/:id",
-    controller.getOne
-  );
+    resource.delete(
+      "/:id",
+      controller.remove
+    );
 
-  resource.patch(
-    "/:id",
-    controller.update
-  );
-
-  resource.delete(
-    "/:id",
-    controller.remove
-  );
-
-  router.use(
-    path,
-    resource
-  );
-};
+    router.use(
+      path,
+      resource
+    );
+  };
 
 /* =========================================================
-   PARTIES
+   PARTY MASTER DATA
+
+   Party remains shared because Purchase/Sale/Payment/LR
+   currently reference Party rather than the newer Customer model.
 ========================================================= */
 
 mountResource(
   "/parties",
   "dashboard",
-  Party
+  Party,
+  {
+    scopePolicy: {
+      globalRead:
+        true,
+    },
+
+    writeRoles: [
+      "Super Admin",
+      "Admin",
+      "Manager",
+    ],
+  }
 );
 
 /* =========================================================
@@ -337,6 +392,20 @@ mountResource(
   {
     createdBy:
       true,
+
+    scopePolicy: {
+      ownershipFields: [
+        "createdBy",
+        "assignedTo",
+      ],
+
+      assignmentFields: [
+        "assignedTo",
+      ],
+
+      autoAssignManagerToSelf:
+        true,
+    },
 
     populate: [
       {
@@ -360,7 +429,7 @@ mountResource(
           "createdBy",
 
         select:
-          "name email role",
+          "name email role department",
       },
 
       {
@@ -400,6 +469,20 @@ mountResource(
     createdBy:
       true,
 
+    scopePolicy: {
+      ownershipFields: [
+        "createdBy",
+        "manager",
+      ],
+
+      assignmentFields: [
+        "manager",
+      ],
+
+      autoAssignManagerToSelf:
+        true,
+    },
+
     populate: [
       {
         path:
@@ -422,7 +505,7 @@ mountResource(
           "createdBy",
 
         select:
-          "name email role",
+          "name email role department",
       },
 
       {
@@ -451,6 +534,57 @@ mountResource(
   "sale_bill",
   SaleBill,
   {
+    createdBy:
+      true,
+
+    scopePolicy: {
+      ownershipFields: [
+        "createdBy",
+        "manager",
+      ],
+
+      assignmentFields: [
+        "manager",
+      ],
+
+      autoAssignManagerToSelf:
+        true,
+    },
+
+    populate: [
+      {
+        path:
+          "customer",
+
+        select:
+          "name type phone city address status",
+      },
+
+      {
+        path:
+          "manager",
+
+        select:
+          "name email role department status",
+      },
+
+      {
+        path:
+          "createdBy",
+
+        select:
+          "name email role department",
+      },
+
+      {
+        path:
+          "items.product",
+
+        select:
+          "name sku unit stockUnit sellingPrice gst status",
+      },
+    ],
+
     beforeCreate:
       captureBillingSnapshot,
 
@@ -469,7 +603,56 @@ mountResource(
 mountResource(
   "/payments",
   "payment",
-  Payment
+  Payment,
+  {
+    createdBy:
+      true,
+
+    scopePolicy: {
+      ownershipFields: [
+        "createdBy",
+        "receivedBy",
+      ],
+
+      assignmentFields: [
+        "receivedBy",
+      ],
+
+      autoAssignManagerToSelf:
+        true,
+    },
+
+    populate: [
+      {
+        path:
+          "saleBill",
+      },
+
+      {
+        path:
+          "customer",
+
+        select:
+          "name type phone city",
+      },
+
+      {
+        path:
+          "receivedBy",
+
+        select:
+          "name role department",
+      },
+
+      {
+        path:
+          "createdBy",
+
+        select:
+          "name role department",
+      },
+    ],
+  }
 );
 
 /* =========================================================
@@ -479,7 +662,64 @@ mountResource(
 mountResource(
   "/dispatch",
   "dispatch",
-  Dispatch
+  Dispatch,
+  {
+    createdBy:
+      true,
+
+    scopePolicy: {
+      ownershipFields: [
+        "createdBy",
+        "manager",
+      ],
+
+      assignmentFields: [
+        "manager",
+      ],
+
+      autoAssignManagerToSelf:
+        true,
+    },
+
+    populate: [
+      {
+        path:
+          "saleBill",
+      },
+
+      {
+        path:
+          "customer",
+
+        select:
+          "name phone city address",
+      },
+
+      {
+        path:
+          "manager",
+
+        select:
+          "name role department",
+      },
+
+      {
+        path:
+          "createdBy",
+
+        select:
+          "name role department",
+      },
+
+      {
+        path:
+          "items.product",
+
+        select:
+          "name sku unit stockUnit",
+      },
+    ],
+  }
 );
 
 /* =========================================================
@@ -489,7 +729,61 @@ mountResource(
 mountResource(
   "/lrs",
   "lr",
-  LR
+  LR,
+  {
+    createdBy:
+      true,
+
+    scopePolicy: {
+      ownershipFields: [
+        "createdBy",
+        "assignedTo",
+      ],
+
+      assignmentFields: [
+        "assignedTo",
+      ],
+
+      autoAssignManagerToSelf:
+        true,
+    },
+
+    populate: [
+      {
+        path:
+          "dispatch",
+      },
+
+      {
+        path:
+          "saleBill",
+      },
+
+      {
+        path:
+          "customer",
+
+        select:
+          "name phone city address",
+      },
+
+      {
+        path:
+          "assignedTo",
+
+        select:
+          "name role department",
+      },
+
+      {
+        path:
+          "createdBy",
+
+        select:
+          "name role department",
+      },
+    ],
+  }
 );
 
 /* =========================================================
@@ -506,6 +800,30 @@ mountResource(
 
     stringReferenceId:
       true,
+
+    scopePolicy: {
+      ownershipFields: [
+        "createdBy",
+      ],
+    },
+
+    populate: [
+      {
+        path:
+          "party",
+
+        select:
+          "name type phone city",
+      },
+
+      {
+        path:
+          "createdBy",
+
+        select:
+          "name role department",
+      },
+    ],
   }
 );
 
@@ -542,11 +860,6 @@ router.get(
           notifications,
       });
     } catch (error) {
-      console.error(
-        "notifications:",
-        error
-      );
-
       return res
         .status(500)
         .json({
